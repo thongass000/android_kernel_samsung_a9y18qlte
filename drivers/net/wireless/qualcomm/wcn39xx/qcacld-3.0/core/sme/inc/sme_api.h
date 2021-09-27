@@ -1716,7 +1716,7 @@ sme_apf_read_work_memory(tHalHandle hal,
 #endif /* FEATURE_WLAN_APF */
 
 uint32_t sme_get_wni_dot11_mode(tHalHandle hal);
-QDF_STATUS sme_create_mon_session(tHalHandle hal_handle, uint8_t *bssid);
+QDF_STATUS sme_create_mon_session(tHalHandle hal_handle, uint8_t bssid[QDF_MAC_ADDR_SIZE]);
 /**
  * sme_delete_mon_session() - post message to delete PE session for mon_mode
  * operation
