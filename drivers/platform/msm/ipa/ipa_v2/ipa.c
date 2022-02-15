@@ -2351,9 +2351,9 @@ int ioremap_non_ap_bam_regs(void)
 
 			ep_idx = ipa2_get_ep_mapping(client_idx);
 
-			if (ep_idx == -1)
+			if (ep_idx == -1) 
 				continue;
-
+			
 			ipa_ctx->ipa_non_ap_bam_s_desc_iova[ep_idx] =
 				ioremap_sw_desc_ofst_bam_register(ep_idx);
 			ipa_ctx->ipa_non_ap_bam_p_desc_iova[ep_idx] =
@@ -2365,7 +2365,7 @@ int ioremap_non_ap_bam_regs(void)
 				return -ENOMEM;
 			}
 		}
-		return 0;
+	return 0;
 }
 
 /**

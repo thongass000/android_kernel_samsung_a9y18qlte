@@ -696,15 +696,15 @@ static int muic_handle_ccic_RID(muic_data_t *pmuic, CC_NOTI_RID_TYPEDEF *pnoti)
 		vbus = mdev_get_vbus(pmuic);
 		if (pdesc->ccic_evt_attached == MUIC_CCIC_NOTI_ATTACH &&
 			mdev_is_valid_RID_OPEN(pmuic, vbus)) {
-			if (pmuic->pdata->jig_uart_cb)
+			if (pmuic->pdata->jig_uart_cb) {
 				pmuic->pdata->jig_uart_cb(0);
 				/*
 				 * USB team's requirement.
 				 * Set AP USB for enumerations.
 				 */
 				mdev_com_to(pmuic, MUIC_PATH_USB_AP);
-
-				mdev_handle_legacy_TA_USB(pmuic);
+			}
+			mdev_handle_legacy_TA_USB(pmuic);
 		} else {
 			/* RID OPEN + No VBUS = Assume detach */
 			mdev_handle_ccic_detach(pmuic);
