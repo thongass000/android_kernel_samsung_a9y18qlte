@@ -1054,7 +1054,7 @@ config TIMA_UEVENT
          Uevent messages for TIMA PKM/LKM
 
 config TIMA_LOG
-       bool "Log dumping support for TIMA"
+       tristate "Log dumping support for TIMA"
        depends on TIMA
        default n
        help
