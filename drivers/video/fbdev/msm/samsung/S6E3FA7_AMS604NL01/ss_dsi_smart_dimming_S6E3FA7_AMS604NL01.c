@@ -251,7 +251,7 @@ static void TP_gamma_voltage_calc(struct SMART_DIM *pSmart)
 
 
 // 1. V255 : ((VREG1 - V255) * denominator_TP / VREG) - numerator_TP
-static unsigned long long v255_TP_gamma_code_calc(int VREG, int GRAY, const const int fraction[])
+static unsigned long long v255_TP_gamma_code_calc(int VREG, int GRAY, const int fraction[])
 {
 	unsigned long long val1, val2, val3;
 
