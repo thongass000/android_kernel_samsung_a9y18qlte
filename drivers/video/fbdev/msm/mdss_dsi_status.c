@@ -201,7 +201,7 @@ static int fb_event_callback(struct notifier_block *self,
 		switch (*blank) {
 		case FB_BLANK_UNBLANK:
 #if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
-			if (!ctrl_pdata->status_mode == ESD_REG_IRQ)
+			if (ctrl_pdata->status_mode != ESD_REG_IRQ)
 #endif
 			schedule_delayed_work(&pdata->check_status,
 				msecs_to_jiffies(interval));
