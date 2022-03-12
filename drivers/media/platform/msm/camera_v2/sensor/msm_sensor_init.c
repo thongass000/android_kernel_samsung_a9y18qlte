@@ -2014,9 +2014,10 @@ static int __init msm_sensor_init_module(void)
     svc_cheating_prevent_device_file_create(&SVC);
 
     camera_class = class_create(THIS_MODULE, "camera");
-    if (IS_ERR(camera_class))
+    if (IS_ERR(camera_class)) {
         pr_err("failed to create device cam_dev_rear!\n");
-
+	}
+	
 	/* Allocate memory for msm_sensor_init control structure */
 	s_init = kzalloc(sizeof(struct msm_sensor_init_t), GFP_KERNEL);
     if (!s_init) {
