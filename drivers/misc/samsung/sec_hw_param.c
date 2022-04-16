@@ -87,17 +87,6 @@ static void check_format(char *buf, ssize_t *size, int max_len_str)
 	}
 }
 
-static bool __is_ready_debug_reset_header(void)
-{
-	struct debug_reset_header *header = get_debug_reset_header();
-
-	if (!header)
-		return false;
-
-	kfree(header);
-	return true;
-}
-
 static bool __is_valid_reset_reason(unsigned int reset_reason)
 {
 	if (reset_reason < USER_UPLOAD_CAUSE_MIN ||
@@ -165,8 +154,10 @@ static ssize_t show_last_dcvs(struct device *dev,
 
 	sysfs_scnprintf(buf, info_size, "\"RR\":\"%s\",",
 			sec_debug_get_reset_reason_str(reset_reason));
+#ifdef CONFIG_SEC_DEBUG
 	sysfs_scnprintf(buf, info_size, "\"RWC\":\"%d\",",
 			sec_debug_get_reset_write_cnt());
+#endif
 
 	sysfs_scnprintf(buf, info_size, "\"DDRKHz\":\"%u\",",
 			phealth->last_dcvs.rpm.ddr_KHz);
@@ -363,11 +354,6 @@ static ssize_t show_extra_info(struct device *dev,
 	_kern_ex_info_t *p_kinfo = NULL;
 	int cpu = -1;
 
-	if (!__is_ready_debug_reset_header()) {
-		pr_info("updated nothing.\n");
-		goto out;
-	}
-
 	reset_reason = sec_debug_get_reset_reason();
 	if (!__is_valid_reset_reason(reset_reason))
 		goto out;
@@ -385,8 +371,10 @@ static ssize_t show_extra_info(struct device *dev,
 
 	offset += scnprintf((char*)(buf + offset), EXTRA_LEN_STR - offset,
 			"\"RR\":\"%s\",", sec_debug_get_reset_reason_str(reset_reason));
+#ifdef CONFIG_SEC_DEBUG
 	offset += scnprintf((char*)(buf + offset), EXTRA_LEN_STR - offset,
 			"\"RWC\":\"%d\",", sec_debug_get_reset_write_cnt());
+#endif
 
 	ts_nsec = p_kinfo->ktime;
 	rem_nsec = do_div(ts_nsec, 1000000000ULL);
@@ -502,11 +490,6 @@ static ssize_t show_extrb_info(struct device *dev,
 	rst_exinfo_t *p_rst_exinfo = NULL;
 	__rpm_log_t *pRPMlog = NULL;
 
-	if (!__is_ready_debug_reset_header()) {
-		pr_info("updated nothing.\n");
-		goto out;
-	}
-
 	reset_reason = sec_debug_get_reset_reason();
 	if (!__is_valid_reset_reason(reset_reason))
 		goto out;
@@ -524,9 +507,10 @@ static ssize_t show_extrb_info(struct device *dev,
 
 	offset += scnprintf((char*)(buf + offset), SPECIAL_LEN_STR - offset,
 			"\"RR\":\"%s\",", sec_debug_get_reset_reason_str(reset_reason));
-
+#ifdef CONFIG_SEC_DEBUG
 	offset += scnprintf((char*)(buf + offset), SPECIAL_LEN_STR - offset,
 			"\"RWC\":\"%d\",", sec_debug_get_reset_write_cnt());
+#endif
 
 	if (p_rst_exinfo->rpm_ex_info.info.magic == RPM_EX_INFO_MAGIC
 		 && p_rst_exinfo->rpm_ex_info.info.nlog > 0) {
@@ -628,11 +612,6 @@ static ssize_t show_extrc_info(struct device *dev,
 	unsigned int i = 0;
 	char *extrc_buf = NULL;
 
-	if (!__is_ready_debug_reset_header()) {
-		pr_info("updated nothing.\n");
-		goto out;
-	}
-
 	reset_reason = sec_debug_get_reset_reason();
 	if (!__is_valid_reset_reason(reset_reason))
 		goto out;
@@ -651,8 +630,10 @@ static ssize_t show_extrc_info(struct device *dev,
 	offset += scnprintf((char*)(buf + offset), SPECIAL_LEN_STR - offset,
 			"\"RR\":\"%s\",", sec_debug_get_reset_reason_str(reset_reason));
 
+#ifdef CONFIG_SEC_DEBUG
 	offset += scnprintf((char*)(buf + offset), SPECIAL_LEN_STR - offset,
 			"\"RWC\":\"%d\",", sec_debug_get_reset_write_cnt());
+#endif
 
 	for(i = 0; i < SEC_DEBUG_RESET_EXTRC_SIZE; i++) { // check " character and then change ' character
 		if (extrc_buf[i] == '"')

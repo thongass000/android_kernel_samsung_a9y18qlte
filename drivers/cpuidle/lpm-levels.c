@@ -1668,9 +1668,13 @@ static int lpm_cpuidle_enter(struct cpuidle_device *dev,
 
 	BUG_ON(!use_psci);
 	sec_debug_cpu_lpm_log(dev->cpu, idx, 0, 1);
+#ifdef CONFIG_SEC_DEBUG
 	secdbg_sched_msg("+Idle(%s)", cluster->cpu->levels[idx].name);
+#endif
 	success = psci_enter_sleep(cluster, idx, true);
+#ifdef CONFIG_SEC_DEBUG
 	secdbg_sched_msg("-Idle(%s)", cluster->cpu->levels[idx].name);
+#endif
 
 exit:
 	end_time = ktime_to_ns(ktime_get());
@@ -1942,7 +1946,9 @@ static int lpm_suspend_enter(suspend_state_t state)
 	if (idx > 0) {
 		update_debug_pc_event(CPU_ENTER, idx, 0xdeaffeed,
 					0xdeaffeed, false);
+#ifdef CONFIG_SEC_DEBUG
 		secdbg_sched_msg("+Suspend(s:%d)", state);
+#endif
 	}
 
 	/*
@@ -1958,15 +1964,19 @@ static int lpm_suspend_enter(suspend_state_t state)
 #endif
 	BUG_ON(!use_psci);
 
+#ifdef CONFIG_SEC_DEBUG
 	if (idx > 0)
 		secdbg_sched_msg("+Suspend(s:%d)", state);
+#endif
 
 	psci_enter_sleep(cluster, idx, true);
 
 	if (idx > 0) {
 		update_debug_pc_event(CPU_EXIT, idx, true, 0xdeaffeed,
 					false);
+#ifdef CONFIG_SEC_DEBUG
 		secdbg_sched_msg("-Suspend(s:%d)", state);
+#endif
 	}
 
 	cluster_unprepare(cluster, cpumask, idx, false, 0);

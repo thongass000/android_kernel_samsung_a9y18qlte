@@ -114,9 +114,9 @@ void panic(const char *fmt, ...)
 	if (!spin_trylock(&panic_lock))
 		panic_smp_self_stop();
 
+#ifdef CONFIG_SEC_DEBUG
 	secdbg_sched_msg("!!panic!!");
-
-	secdbg_sched_msg("!!panic!!");
+#endif
 
 	console_verbose();
 	bust_spinlocks(1);

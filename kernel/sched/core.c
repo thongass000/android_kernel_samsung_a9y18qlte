@@ -3596,7 +3596,9 @@ static void __sched notrace __schedule(bool preempt)
 		set_task_last_switch_out(prev, wallclock);
 
 		trace_sched_switch(preempt, prev, next);
+#ifdef CONFIG_SEC_DEBUG
 		sec_debug_task_sched_log(cpu, preempt, next, prev);
+#endif
 		rq = context_switch(rq, prev, next); /* unlocks the rq */
 		cpu = cpu_of(rq);
 	} else {

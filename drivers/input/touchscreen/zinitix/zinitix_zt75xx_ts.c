@@ -9059,7 +9059,7 @@ static void bt532_run_rawdata(struct bt532_ts_info *info)
 }
 #if defined(CONFIG_TOUCHSCREEN_DUMP_MODE)
 #include <linux/sec_debug.h>
-extern struct tsp_dump_callbacks dump_callbacks;
+static struct tsp_dump_callbacks dump_callbacks;
 static struct delayed_work *p_ghost_check;
 static void bt532_check_rawdata(struct work_struct *work)
 {

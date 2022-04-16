@@ -2076,7 +2076,9 @@ __acquires(&pool->lock)
 	lock_map_acquire(&lockdep_map);
 	trace_workqueue_execute_start(work);
 
+#ifdef CONFIG_SEC_DEBUG
 	secdbg_sched_msg("@%pS", worker->current_func);
+#endif
 
 	worker->current_func(work);
 	/*
