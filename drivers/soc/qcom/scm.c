@@ -24,6 +24,15 @@
 
 #include <soc/qcom/scm.h>
 
+#include <linux/thread_info.h>
+#include <linux/sched.h>
+#include <linux/string.h>
+#if defined(CONFIG_ARCH_SDM660)
+#include <linux/smp.h>
+#endif
+
+#include <linux/sec_debug.h>
+
 #define CREATE_TRACE_POINTS
 #include <trace/events/scm.h>
 
@@ -215,6 +224,13 @@ static u32 smc(u32 cmd_addr)
 	return r0;
 }
 
+#if defined(CONFIG_ARCH_SDM660)
+static void __wrap_flush_cache_all(void* vp)
+{
+	flush_cache_all();
+}
+#endif
+
 static int __scm_call(const struct scm_command *cmd)
 {
 	int ret;
@@ -298,9 +314,14 @@ static int scm_call_common(u32 svc_id, u32 cmd_id, const void *cmd_buf,
 	if (cmd_buf)
 		memcpy(scm_get_command_buffer(scm_buf), cmd_buf, cmd_len);
 
+	sec_debug_secure_log(svc_id, cmd_id);
+
 	mutex_lock(&scm_lock);
 	ret = __scm_call(scm_buf);
 	mutex_unlock(&scm_lock);
+
+	sec_debug_secure_log(svc_id, cmd_id);
+
 	if (ret)
 		return ret;
 
@@ -635,8 +656,19 @@ static int allocate_extra_arg_buffer(struct scm_desc *desc, gfp_t flags)
 	return 0;
 }
 
+#ifdef CONFIG_TIMA_LKMAUTH
+pid_t pid_from_lkm = -1;
+#endif
+
 static int __scm_call2(u32 fn_id, struct scm_desc *desc, bool retry)
 {
+	const char * const proca_clients_names[] = {
+		 "secure_storage_", "pa_daemon", "proca@1.0-servi",
+		 "vaultkeeper@1.0", "vaultkeeperd", "keymaster@3.0-s",
+		 "wsmd", "wsm@1.0-service", NULL
+	}; // keep last NULL!
+	int call_from_proca = 0;
+	int i;
 	int arglen = desc->arginfo & 0xf;
 	int ret, retry_count = 0;
 	u64 x0;
@@ -649,6 +681,17 @@ static int __scm_call2(u32 fn_id, struct scm_desc *desc, bool retry)
 		return ret;
 
 	x0 = fn_id | scm_version_mask;
+	/*
+	 * in case of pa_daemon
+	 */
+	for (i = 0; proca_clients_names[i]; i++) {
+		if (strncmp(current->comm, proca_clients_names[i],
+					TASK_COMM_LEN - 1) == 0) {
+			call_from_proca = 1;
+			break;
+		}
+	}
+
 	do {
 		mutex_lock(&scm_lock);
 
@@ -656,6 +699,20 @@ static int __scm_call2(u32 fn_id, struct scm_desc *desc, bool retry)
 			mutex_lock(&scm_lmh_lock);
 
 		desc->ret[0] = desc->ret[1] = desc->ret[2] = 0;
+
+#ifdef CONFIG_TIMA_LKMAUTH
+		if ((pid_from_lkm == current->pid) || call_from_proca) {
+#else
+		if (call_from_proca) {
+#endif
+			flush_cache_all();
+#if defined(CONFIG_ARCH_SDM660)
+			smp_call_function((void (*)(void *))__wrap_flush_cache_all, NULL, 1);
+#endif
+#ifndef CONFIG_ARM64
+			outer_flush_all();
+#endif
+		}
 
 		trace_scm_call_start(x0, desc);
 
@@ -673,6 +730,16 @@ static int __scm_call2(u32 fn_id, struct scm_desc *desc, bool retry)
 						  &desc->ret[2]);
 
 		trace_scm_call_end(desc);
+
+		if (call_from_proca) {
+			flush_cache_all();
+#if defined(CONFIG_ARCH_SDM660)
+			smp_call_function((void (*)(void *))__wrap_flush_cache_all, NULL, 1);
+#endif
+#ifndef CONFIG_ARM64
+			outer_flush_all();
+#endif
+		}
 
 		if (SCM_SVC_ID(fn_id) == SCM_SVC_LMH)
 			mutex_unlock(&scm_lmh_lock);

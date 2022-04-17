@@ -42,6 +42,9 @@
 #include "kgsl_sync.h"
 #include "kgsl_compat.h"
 #include "kgsl_pool.h"
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
+#include <../drivers/video/fbdev/msm/samsung/ss_dsi_panel_common.h>
+#endif
 
 #undef MODULE_PARAM_PREFIX
 #define MODULE_PARAM_PREFIX "kgsl."
@@ -593,7 +596,6 @@ int kgsl_context_init(struct kgsl_device_private *dev_priv,
 	snprintf(name, sizeof(name), "context-%d", id);
 	kgsl_add_event_group(&context->events, context, name,
 		kgsl_readtimestamp, context);
-
 out:
 	if (ret) {
 		atomic_dec(&proc_priv->ctxt_count);
@@ -629,13 +631,17 @@ static void kgsl_context_detach(struct kgsl_context *context)
 	 * the context before it gets fully removed, and to make sure
 	 * we don't try to detach twice.
 	 */
-	if (test_and_set_bit(KGSL_CONTEXT_PRIV_DETACHED, &context->priv))
+	if (test_and_set_bit(KGSL_CONTEXT_PRIV_DETACHED, &context->priv)) {
+		pr_err("KGSL: Trying to detach context %d multiple times\n", context->id);
 		return;
+	}
 
 	device = context->device;
 
 	trace_kgsl_context_detach(device, context);
 
+	context->timers[1] = local_clock();
+	pr_debug("KGSL: Detaching context %d, clock:%llu\n", context->id, context->timers[1]);
 	context->device->ftbl->drawctxt_detach(context);
 
 	/*
@@ -657,6 +663,7 @@ kgsl_context_destroy(struct kref *kref)
 	struct kgsl_context *context = container_of(kref, struct kgsl_context,
 						    refcount);
 	struct kgsl_device *device = context->device;
+	unsigned int id = context->id;
 
 	trace_kgsl_context_destroy(device, context);
 
@@ -688,7 +695,13 @@ kgsl_context_destroy(struct kref *kref)
 	kgsl_sync_timeline_destroy(context);
 	kgsl_process_private_put(context->proc_priv);
 
+	context->timers[2] = local_clock();
+	pr_debug("KGSL: Destroying context %d alive:%llu detached:%llu\n", id,
+			context->timers[1] - context->timers[0],
+			context->timers[2] - context->timers[1]);
+
 	device->ftbl->drawctxt_destroy(context);
+	pr_debug("KGSL: Destroyed  context %d\n", id);
 }
 
 struct kgsl_device *kgsl_get_device(int dev_idx)
@@ -1837,6 +1850,9 @@ long kgsl_ioctl_drawctxt_create(struct kgsl_device_private *dev_priv,
 		result = PTR_ERR(context);
 		goto done;
 	}
+	context->timers[0] = local_clock();
+	pr_debug("KGSL: Creating   context %d, clock:%llu tid:%d\n",
+			context->id, context->timers[0], context->tid);
 	trace_kgsl_context_create(dev_priv->device, context, param->flags);
 
 	/* Commit the pointer to the context in context_idr */
@@ -2091,13 +2107,6 @@ long kgsl_ioctl_cmdstream_freememontimestamp_ctxtid(
 	return ret;
 }
 
-static inline int _check_region(unsigned long start, unsigned long size,
-				uint64_t len)
-{
-	uint64_t end = ((uint64_t) start) + size;
-	return (end > len);
-}
-
 static int check_vma_flags(struct vm_area_struct *vma,
 		unsigned int flags)
 {
@@ -2112,23 +2121,27 @@ static int check_vma_flags(struct vm_area_struct *vma,
 	return -EFAULT;
 }
 
-static int check_vma(struct vm_area_struct *vma, struct file *vmfile,
-		struct kgsl_memdesc *memdesc)
+static int check_vma(unsigned long hostptr, u64 size)
 {
-	if (vma == NULL || vma->vm_file != vmfile)
-		return -EINVAL;
+	struct vm_area_struct *vma;
+	unsigned long cur = hostptr;
 
-	/* userspace may not know the size, in which case use the whole vma */
-	if (memdesc->size == 0)
-		memdesc->size = vma->vm_end - vma->vm_start;
-	/* range checking */
-	if (vma->vm_start != memdesc->useraddr ||
-		(memdesc->useraddr + memdesc->size) != vma->vm_end)
-		return -EINVAL;
-	return check_vma_flags(vma, memdesc->flags);
+	while (cur < (hostptr + size)) {
+		vma = find_vma(current->mm, cur);
+		if (!vma)
+			return false;
+
+		/* Don't remap memory that we already own */
+		if (vma->vm_file && vma->vm_file->f_op == &kgsl_fops)
+			return false;
+
+		cur = vma->vm_end;
 }
 
-static int memdesc_sg_virt(struct kgsl_memdesc *memdesc, struct file *vmfile)
+	return true;
+}
+
+static int memdesc_sg_virt(struct kgsl_memdesc *memdesc)
 {
 	int ret = 0;
 	long npages = 0, i;
@@ -2150,19 +2163,18 @@ static int memdesc_sg_virt(struct kgsl_memdesc *memdesc, struct file *vmfile)
 	}
 
 	down_read(&current->mm->mmap_sem);
-	/* If we have vmfile, make sure we map the correct vma and map it all */
-	if (vmfile != NULL)
-		ret = check_vma(find_vma(current->mm, memdesc->useraddr),
-				vmfile, memdesc);
+	if (!check_vma(memdesc->useraddr, memdesc->size)) {
+		up_read(&current->mm->mmap_sem);
+		ret = -EFAULT;
+		goto out;
+	}
 
-	if (ret == 0) {
 		npages = get_user_pages(current, current->mm, memdesc->useraddr,
 					sglen, write ? FOLL_WRITE : 0,
 					pages, NULL);
-		ret = (npages < 0) ? (int)npages : 0;
-	}
 	up_read(&current->mm->mmap_sem);
 
+	ret = (npages < 0) ? (int)npages : 0;
 	if (ret)
 		goto out;
 
@@ -2213,7 +2225,7 @@ static int kgsl_setup_anon_useraddr(struct kgsl_pagetable *pagetable,
 		entry->memdesc.gpuaddr = (uint64_t)  entry->memdesc.useraddr;
 	}
 
-	return memdesc_sg_virt(&entry->memdesc, NULL);
+	return memdesc_sg_virt(&entry->memdesc);
 }
 
 static int match_file(const void *p, struct file *file, unsigned int fd)
@@ -2486,7 +2498,7 @@ long kgsl_ioctl_gpuobj_import(struct kgsl_device_private *dev_priv,
 	return 0;
 
 unmap:
-	if (param->type == KGSL_USER_MEM_TYPE_DMABUF) {
+	if (kgsl_memdesc_usermem_type(&entry->memdesc) == KGSL_MEM_ENTRY_ION) {
 		kgsl_destroy_ion(entry->priv_data);
 		entry->memdesc.sgt = NULL;
 	}
@@ -2795,7 +2807,7 @@ long kgsl_ioctl_map_user_mem(struct kgsl_device_private *dev_priv,
 	return result;
 
 error_attach:
-	switch (memtype) {
+	switch (kgsl_memdesc_usermem_type(&entry->memdesc)) {
 	case KGSL_MEM_ENTRY_ION:
 		kgsl_destroy_ion(entry->priv_data);
 		entry->memdesc.sgt = NULL;
@@ -3217,7 +3229,15 @@ long kgsl_ioctl_gpuobj_alloc(struct kgsl_device_private *dev_priv,
 {
 	struct kgsl_gpuobj_alloc *param = data;
 	struct kgsl_mem_entry *entry;
+#if defined(CONFIG_DISPLAY_SAMSUNG)
+	struct kgsl_process_private *private = dev_priv->process_priv;
+	uint64_t debug_size;
+	debug_size = param->size >> 10;
 
+	if(debug_size > 200000) {
+		pr_err("kgsl: huge memory %lldKB is requested from pid = %d comm = %s\n", debug_size, private->pid, private->comm);
+	}
+#endif
 	entry = gpumem_alloc_entry(dev_priv, param->size, param->flags);
 
 	if (IS_ERR(entry))
@@ -4202,6 +4222,8 @@ kgsl_mmap_memstore(struct kgsl_device *device, struct vm_area_struct *vma)
 	if (vma->vm_flags & VM_WRITE)
 		return -EPERM;
 
+	vma->vm_flags &= ~VM_MAYWRITE;
+
 	if (memdesc->size  !=  vma_size) {
 		KGSL_MEM_ERR(device, "memstore bad size: %d should be %llu\n",
 			     vma_size, memdesc->size);
@@ -4375,8 +4397,15 @@ static unsigned long _cpu_get_unmapped_area(unsigned long bottom,
 
 	addr = vm_unmapped_area(&info);
 
+#if !defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
 	if (IS_ERR_VALUE(addr))
 		return addr;
+#else
+	if (IS_ERR_VALUE(addr)) {
+		GFX_INFO("Fail to get unmapped area from CPU VM(ret : %lu\n", addr);
+		return addr;
+	}
+#endif
 
 	err = security_mmap_addr(addr);
 	return err ? err : addr;
@@ -4498,6 +4527,23 @@ static unsigned long _get_svm_area(struct kgsl_process_private *private,
 	result = _search_range(private, entry, start, addr, len, align);
 	if (IS_ERR_VALUE(result) && hint != 0)
 		result = _search_range(private, entry, addr, end, len, align);
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
+	if (IS_ERR_VALUE(result)) {
+#if !defined(CONFIG_SAMSUNG_PRODUCT_SHIP)
+		GFX_INFO("GPU SVM Range : 0x%llx--0x%llx, flag : 0x%llx, FORCE_32BIT : %s\n",
+				start, end, entry->memdesc.flags,
+				entry->memdesc.flags & KGSL_MEMFLAGS_FORCE_32BIT ? "True" : "False");
+#endif
+	} else {
+		void *start_p, *end_p, *flags_p;
+		start_p = (void *)(uintptr_t)start;
+		end_p = (void *)(uintptr_t)end;
+		flags_p = (void *)(uintptr_t)entry->memdesc.flags;
+		GFX_DEBUG("GPU SVM Range : 0x%pK--0x%pK, flag : 0x%pK, FORCE_32BIT : %s\n",
+				start_p, end_p, flags_p,
+				entry->memdesc.flags & KGSL_MEMFLAGS_FORCE_32BIT ? "True" : "False");
+	}
+#endif
 
 	return result;
 }
@@ -4941,6 +4987,25 @@ void kgsl_device_platform_remove(struct kgsl_device *device)
 }
 EXPORT_SYMBOL(kgsl_device_platform_remove);
 
+static int kgsl_sharedmem_size_notifier(struct notifier_block *nb,
+					unsigned long action, void *data)
+{
+	struct seq_file *s;
+
+	s = (struct seq_file *)data;
+	if (s != NULL)
+		seq_printf(s, "KgslSharedmem:  %8lu kB\n",
+			atomic_long_read(&kgsl_driver.stats.page_alloc) >> 10);
+	else
+		pr_cont("KgslSharedmem:%lukB ",
+			atomic_long_read(&kgsl_driver.stats.page_alloc) >> 10);
+	return 0;
+}
+
+static struct notifier_block kgsl_sharedmem_size_nb = {
+	.notifier_call = kgsl_sharedmem_size_notifier,
+};
+
 static void kgsl_core_exit(void)
 {
 	kgsl_events_exit();
@@ -4967,6 +5032,7 @@ static void kgsl_core_exit(void)
 
 	kgsl_memfree_exit();
 	unregister_chrdev_region(kgsl_driver.major, KGSL_DEVICE_MAX);
+	show_mem_extra_notifier_unregister(&kgsl_sharedmem_size_nb);
 }
 
 static int __init kgsl_core_init(void)
@@ -5058,6 +5124,8 @@ static int __init kgsl_core_init(void)
 		goto err;
 
 	kgsl_memfree_init();
+
+	show_mem_extra_notifier_register(&kgsl_sharedmem_size_nb);
 
 	return 0;
 

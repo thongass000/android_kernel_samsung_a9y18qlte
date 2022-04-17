@@ -1148,7 +1148,7 @@ static int icnss_hw_power_off(struct icnss_priv *priv)
 
 	if (test_bit(ICNSS_FW_DOWN, &priv->state))
 		return 0;
-
+	
 	icnss_pr_dbg("HW Power off: 0x%lx\n", priv->state);
 
 	spin_lock(&priv->on_off_lock);
@@ -1335,6 +1335,7 @@ static int wlfw_msa_mem_info_send_sync_msg(void)
 	}
 
 	return 0;
+	
 
 fail_unwind:
 	memset(&penv->mem_region[0], 0, sizeof(penv->mem_region[0]) * i);
@@ -1637,6 +1638,55 @@ out:
 	return ret;
 }
 
+static int wlfw_send_modem_shutdown_msg(void)
+{
+       int ret;
+       struct wlfw_shutdown_req_msg_v01 req;
+       struct wlfw_shutdown_resp_msg_v01 resp;
+       struct msg_desc req_desc, resp_desc;
+
+       if (!penv || !penv->wlfw_clnt)
+               return -ENODEV;
+
+       icnss_pr_dbg("Sending modem shutdown request, state: 0x%lx\n",
+                    penv->state);
+
+       memset(&req, 0, sizeof(req));
+       memset(&resp, 0, sizeof(resp));
+
+       req.shutdown_valid = 1;
+       req.shutdown = 1;
+
+       req_desc.max_msg_len = WLFW_SHUTDOWN_REQ_MSG_V01_MAX_MSG_LEN;
+       req_desc.msg_id = QMI_WLFW_SHUTDOWN_REQ_V01;
+       req_desc.ei_array = wlfw_shutdown_req_msg_v01_ei;
+
+       resp_desc.max_msg_len = WLFW_SHUTDOWN_RESP_MSG_V01_MAX_MSG_LEN;
+       resp_desc.msg_id = QMI_WLFW_SHUTDOWN_RESP_V01;
+       resp_desc.ei_array = wlfw_shutdown_resp_msg_v01_ei;
+
+       ret = qmi_send_req_wait(penv->wlfw_clnt, &req_desc, &req, sizeof(req),
+                       &resp_desc, &resp, sizeof(resp), WLFW_TIMEOUT_MS);
+       if (ret < 0) {
+               icnss_pr_err("Send modem shutdown req failed, ret: %d\n", ret);
+               goto out;
+       }
+
+       if (resp.resp.result != QMI_RESULT_SUCCESS_V01) {
+               icnss_pr_err("QMI modem shutdown request rejected result:%d error:%d\n",
+                            resp.resp.result, resp.resp.error);
+               ret = -resp.resp.result;
+               goto out;
+       }
+
+       icnss_pr_dbg("modem shutdown request sent successfully, state: 0x%lx\n",
+                     penv->state);
+       return 0;
+
+out:
+       return ret;
+}
+
 static int wlfw_ini_send_sync_msg(uint8_t fw_log_mode)
 {
 	int ret;
@@ -1687,56 +1737,6 @@ static int wlfw_ini_send_sync_msg(uint8_t fw_log_mode)
 out:
 	penv->stats.ini_req_err++;
 	ICNSS_QMI_ASSERT();
-	return ret;
-}
-
-static int wlfw_send_modem_shutdown_msg(void)
-{
-	int ret;
-	struct wlfw_shutdown_req_msg_v01 req;
-	struct wlfw_shutdown_resp_msg_v01 resp;
-	struct msg_desc req_desc, resp_desc;
-
-	if (!penv || !penv->wlfw_clnt)
-		return -ENODEV;
-
-	icnss_pr_dbg("Sending modem shutdown request, state: 0x%lx\n",
-		     penv->state);
-
-	memset(&req, 0, sizeof(req));
-	memset(&resp, 0, sizeof(resp));
-
-	req.shutdown_valid = 1;
-	req.shutdown = 1;
-
-	req_desc.max_msg_len = WLFW_SHUTDOWN_REQ_MSG_V01_MAX_MSG_LEN;
-	req_desc.msg_id = QMI_WLFW_SHUTDOWN_REQ_V01;
-	req_desc.ei_array = wlfw_shutdown_req_msg_v01_ei;
-
-	resp_desc.max_msg_len = WLFW_SHUTDOWN_RESP_MSG_V01_MAX_MSG_LEN;
-	resp_desc.msg_id = QMI_WLFW_SHUTDOWN_RESP_V01;
-	resp_desc.ei_array = wlfw_shutdown_resp_msg_v01_ei;
-
-	ret = qmi_send_req_wait(penv->wlfw_clnt, &req_desc, &req, sizeof(req),
-				&resp_desc, &resp, sizeof(resp),
-				WLFW_TIMEOUT_MS);
-	if (ret < 0) {
-		icnss_pr_err("Send modem shutdown req failed, ret: %d\n", ret);
-		goto out;
-	}
-
-	if (resp.resp.result != QMI_RESULT_SUCCESS_V01) {
-		icnss_pr_err("QMI modem shutdown request rejected result:%d error:%d\n",
-			     resp.resp.result, resp.resp.error);
-		ret = -resp.resp.result;
-		goto out;
-	}
-
-	icnss_pr_dbg("modem shutdown request sent successfully, state: 0x%lx\n",
-		     penv->state);
-	return 0;
-
-out:
 	return ret;
 }
 
@@ -2425,7 +2425,6 @@ static int icnss_driver_event_register_driver(void *data)
 	}
 
 	icnss_block_shutdown(false);
-	set_bit(ICNSS_DRIVER_PROBED, &penv->state);
 
 	return 0;
 
@@ -2488,11 +2487,11 @@ static int icnss_driver_event_pd_service_down(struct icnss_priv *priv,
 	if (test_bit(ICNSS_PD_RESTART, &priv->state) && event_data->crashed) {
 		icnss_pr_err("PD Down while recovery inprogress, crashed: %d, state: 0x%lx\n",
 			     event_data->crashed, priv->state);
-		ICNSS_ASSERT(0);
 		goto out;
 	}
 
 	icnss_fw_crashed(priv, event_data);
+
 
 out:
 	kfree(data);
@@ -2879,6 +2878,11 @@ event_post:
 	}
 
 	clear_bit(ICNSS_HOST_TRIGGERED_PDR, &priv->state);
+
+	fw_down_data.crashed = event_data->crashed;
+	if (!test_bit(ICNSS_DRIVER_UNLOADING, &priv->state))
+		icnss_call_driver_uevent(priv, ICNSS_UEVENT_FW_DOWN,
+					 &fw_down_data);
 	icnss_driver_event_post(ICNSS_DRIVER_EVENT_PD_SERVICE_DOWN,
 				ICNSS_EVENT_SYNC, event_data);
 done:
@@ -4832,6 +4836,7 @@ static int icnss_probe(struct platform_device *pdev)
 			     ret);
 
 	penv = priv;
+	
 
 	init_completion(&priv->unblock_shutdown);
 
@@ -4856,6 +4861,7 @@ static int icnss_remove(struct platform_device *pdev)
 	device_init_wakeup(&penv->pdev->dev, false);
 
 	icnss_debugfs_destroy(penv);
+	
 
 	complete_all(&penv->unblock_shutdown);
 

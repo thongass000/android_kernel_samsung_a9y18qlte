@@ -47,6 +47,15 @@ struct page_ext {
 	gfp_t gfp_mask;
 	int last_migrate_reason;
 	depot_stack_handle_t handle;
+#ifdef CONFIG_PAGE_OWNER_EXTRA
+	unsigned long long alloc_ts;
+	struct task_struct *alloc_task;
+	depot_stack_handle_t free_handle;
+	struct task_struct *free_task;
+	unsigned long long free_ts;
+	unsigned int alloc_cpu;
+	unsigned int free_cpu;
+#endif /* CONFIG_PAGE_OWNER_EXTRA */
 #endif
 };
 

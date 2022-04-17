@@ -52,7 +52,8 @@
 #define MSM_CAMERA_SUBDEV_IR_LED       18
 #define MSM_CAMERA_SUBDEV_IR_CUT       19
 #define MSM_CAMERA_SUBDEV_EXT          20
-#define MSM_CAMERA_SUBDEV_AIS_MNGR     21
+#define MSM_CAMERA_SUBDEV_OTP          21
+#define MSM_CAMERA_SUBDEV_AIS_MNGR     22
 
 #define MSM_MAX_CAMERA_SENSORS  5
 
@@ -63,7 +64,7 @@
  * can have max of 9 groups of 8 bufs each. This value may be
  * configured in future
  */
-#define MSM_CAMERA_MAX_STREAM_BUF 72
+#define MSM_CAMERA_MAX_STREAM_BUF 128
 
 /* Max batch size of processing */
 #define MSM_CAMERA_MAX_USER_BUFF_CNT 16

@@ -17,6 +17,7 @@ obj-y				+= pwm/
 obj-$(CONFIG_PCI)		+= pci/
 obj-$(CONFIG_PARISC)		+= parisc/
 obj-$(CONFIG_RAPIDIO)		+= rapidio/
+obj-$(CONFIG_VBUS_NOTIFIER)	+= staging/samsung/sec_notifier/
 obj-y				+= video/
 obj-y				+= idle/
 
@@ -124,7 +125,6 @@ obj-$(CONFIG_CPU_FREQ)		+= cpufreq/
 obj-$(CONFIG_CPU_IDLE)		+= cpuidle/
 obj-y				+= mmc/
 obj-$(CONFIG_MEMSTICK)		+= memstick/
-obj-y				+= leds/
 obj-$(CONFIG_SWITCH)		+= switch/
 obj-$(CONFIG_INFINIBAND)	+= infiniband/
 obj-$(CONFIG_SGI_SN)		+= sn/
@@ -162,6 +162,7 @@ obj-$(CONFIG_HYPERV)		+= hv/
 
 obj-$(CONFIG_PM_DEVFREQ)	+= devfreq/
 obj-$(CONFIG_EXTCON)		+= extcon/
+obj-$(CONFIG_USE_MUIC)		+= muic/
 obj-$(CONFIG_MEMORY)		+= memory/
 obj-$(CONFIG_IIO)		+= iio/
 obj-$(CONFIG_VME_BUS)		+= vme/
@@ -183,5 +184,30 @@ obj-$(CONFIG_FPGA)		+= fpga/
 obj-$(CONFIG_BIF)		+= bif/
 
 obj-$(CONFIG_SENSORS_SSC)	+= sensors/
+obj-$(CONFIG_ADSP_FACTORY)      += adsp_factory/
 obj-$(CONFIG_ESOC)              += esoc/
 obj-$(CONFIG_TEE)		+= tee/
+
+obj-$(CONFIG_USE_IFPMIC_MUIC)		+= ifpmic/muic/
+obj-$(CONFIG_USE_IFPMIC_MUIC)		+= ifpmic/leds/
+obj-$(CONFIG_USE_IFPMIC_MUIC)		+= ifpmic/motor/
+obj-$(CONFIG_USE_MUIC)		+= leds/
+obj-y		+= ccic/
+
+# FINGERPRINT
+obj-$(CONFIG_SENSORS_FINGERPRINT)	+= fingerprint/
+
+# mobicore
+obj-$(CONFIG_TRUSTONIC_TEE)	+= gud/
+
+# CONFIG_SEC_DEBUG
+obj-y				+= debug/
+
+obj-$(CONFIG_BATTERY_SAMSUNG)	+= battery_v2/
+# Motor
+obj-y				+= motor/
+
+# FIVE TEE driver
+obj-$(CONFIG_FIVE_TEE_DRIVER)	+= five/
+obj-$(CONFIG_ICD)		+= security/samsung/icdrv/
+

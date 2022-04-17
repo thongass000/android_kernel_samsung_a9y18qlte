@@ -29,6 +29,11 @@
 #include <linux/of.h>
 #include <trace/events/power.h>
 
+#ifdef CONFIG_CPU_FREQ_LIMIT
+/* cpu frequency table for limit driver */
+void cpufreq_limit_set_table(int cpu, struct cpufreq_frequency_table * ftbl);
+#endif
+
 static DEFINE_MUTEX(l2bw_lock);
 
 static struct clk *cpu_clk[NR_CPUS];
@@ -111,6 +116,64 @@ done:
 	mutex_unlock(&per_cpu(suspend_data, policy->cpu).suspend_mutex);
 	return ret;
 }
+
+#ifdef CONFIG_SEC_PM
+static int need_wakeup_boost;
+
+void set_wakeup_boost(int enable)
+{
+	need_wakeup_boost = !!enable;
+}
+
+void do_wakeup_boost(void)
+{
+	int cpu;
+	struct cpufreq_policy *policy;
+	struct cpufreq_frequency_table *table;
+	unsigned int freq, freq_idx;
+	int ret;
+
+	if (!need_wakeup_boost)
+		return;
+
+	cpu = smp_processor_id();
+	if (cpu >= 4) // if gold cluster, skip
+		goto out;
+
+	policy = cpufreq_cpu_get_raw(cpu);
+	freq = policy->max; // 1401600
+	if (freq <= policy->cur) {
+		pr_info("%s: cpu%d already high (%u)\n", 
+			__func__, policy->cpu, policy->cur);
+		goto out;
+	}
+	if (freq < policy->min) freq = policy->min;
+	if (freq > policy->max) freq = policy->max;
+
+	table = cpufreq_frequency_get_table(policy->cpu);
+	if (!table)
+		goto out;
+	if (cpufreq_frequency_table_target(policy, table, freq,
+				CPUFREQ_RELATION_L, &freq_idx)) {
+		pr_info("%s: cpu%d invalid frequency\n", 
+			__func__, policy->cpu);
+		goto out;
+	}
+
+	ret = set_cpu_freq(policy, table[freq_idx].frequency,
+				table[freq_idx].driver_data);
+	if (ret) {
+		pr_info("%s: cpu%d boost failed. ret:%d\n", 
+			__func__, policy->cpu, ret);
+		goto out;
+	}
+	pr_info("%s: cpu%d boost %u\n", 
+		__func__, policy->cpu, table[freq_idx].frequency);
+
+out:
+	set_wakeup_boost(0);
+}
+#endif
 
 static int msm_cpufreq_verify(struct cpufreq_policy *policy)
 {
@@ -368,6 +431,10 @@ static struct cpufreq_frequency_table *cpufreq_parse_dt(struct device *dev,
 
 	ftbl[j].driver_data = j;
 	ftbl[j].frequency = CPUFREQ_TABLE_END;
+
+#ifdef CONFIG_CPU_FREQ_LIMIT
+	cpufreq_limit_set_table(cpu, ftbl);
+#endif
 
 	devm_kfree(dev, data);
 

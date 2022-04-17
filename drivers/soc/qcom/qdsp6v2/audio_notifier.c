@@ -117,7 +117,7 @@ static int audio_notifer_get_default_service(int domain)
 	/* initial service to connect per domain */
 	switch (domain) {
 	case AUDIO_NOTIFIER_ADSP_DOMAIN:
-		service = AUDIO_NOTIFIER_PDR_SERVICE;
+		service = AUDIO_NOTIFIER_SSR_SERVICE;
 		break;
 	case AUDIO_NOTIFIER_MODEM_DOMAIN:
 		service = AUDIO_NOTIFIER_SSR_SERVICE;

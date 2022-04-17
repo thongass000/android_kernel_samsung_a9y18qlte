@@ -121,15 +121,10 @@ config SND_SOC_INT_CODEC
 	select MSM_QDSP6_NOTIFIER
 	select MSM_QDSP6V2_CODECS
 	select MSM_CDC_PINCTRL
-	select SND_SOC_MSM_SDW
 	select SND_SOC_SDM660_CDC
 	select SND_SOC_MSM_HDMI_CODEC_RX
 	select QTI_PP
-	select DTS_SRS_TM
-	select DOLBY_LICENSE
 	select SND_HWDEP
-	select MSM_ULTRASOUND
-	select DTS_EAGLE
 	select SND_SOC_SDM660_COMMON
 	select SND_SOC_COMPRESS
 	select PINCTRL_LPI
@@ -158,13 +153,7 @@ config SND_SOC_EXT_CODEC
 	select SND_SOC_MSM_HDMI_CODEC_RX
 	select MFD_CORE
 	select QTI_PP
-	select DTS_SRS_TM
-	select DOLBY_LICENSE
-	select SND_SOC_CPE
-	select SND_SOC_WCD_CPE
 	select SND_HWDEP
-	select MSM_ULTRASOUND
-	select DTS_EAGLE
 	select SND_SOC_SDM660_COMMON
 	select SND_SOC_COMPRESS
 	select PINCTRL_LPI
@@ -254,12 +243,35 @@ config SND_SOC_660
 	tristate "SoC Machine driver for SDM660 boards"
 	depends on ARCH_SDM660
 	select SND_SOC_INT_CODEC
-	select SND_SOC_EXT_CODEC
 	help
 	 To add support for SoC audio on SDM660.
 	 This will enable sound soc drivers which
 	 interfaces with DSP, also it will enable
 	 the machine driver and the corresponding
 	 DAI-links
+
+config SEC_SND_ADAPTATION
+	tristate "Samsung ADSP Adaptation"
+	default n
+	help
+		To add support for Samsung ADSP solution
+
+config SND_SOC_JACK_AUDIO
+	tristate "Samsung Jack Audio"
+	default n
+	help
+		To add support for Samsung Jack Audio
+
+config SEC_SND
+	tristate "Samsung Sound Customization"
+	default n
+	help
+		To add samsung sound customization
+
+config KNOWLES_DMIC_CONTROL
+	tristate "Samsung Knowles Dmic Control" 
+	default n
+	help
+		To add support for Samsung Knowles Dmic Control 
 
 endmenu

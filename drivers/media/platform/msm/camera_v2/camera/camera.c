@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -378,8 +378,9 @@ static int camera_v4l2_s_fmt_vid_cap_mplane(struct file *filep, void *fh,
 
 		pr_debug("%s: num planes :%c\n", __func__,
 					user_fmt->num_planes);
-		/*num_planes need to bound checked, otherwise for loop
-		can execute forever */
+ 		/* num_planes need to bound checked, otherwise for loop
+ 		 * can execute forever
+ 		 */
 		if (WARN_ON(user_fmt->num_planes > VIDEO_MAX_PLANES)) {
 			rc = -EINVAL;
 			mutex_unlock(sp->vb2_q.lock);
@@ -396,6 +397,7 @@ static int camera_v4l2_s_fmt_vid_cap_mplane(struct file *filep, void *fh,
 			rc = msm_post_event(&event, MSM_POST_EVT_TIMEOUT);
 			if (rc < 0)
 				goto done;
+
 			rc = camera_check_event_status(&event);
 			if (rc < 0)
 				goto done;
@@ -404,6 +406,7 @@ static int camera_v4l2_s_fmt_vid_cap_mplane(struct file *filep, void *fh,
 	}
 done:
 	return rc;
+
 }
 
 static int camera_v4l2_try_fmt_vid_cap_mplane(struct file *filep, void *fh,

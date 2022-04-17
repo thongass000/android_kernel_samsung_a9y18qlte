@@ -1042,6 +1042,18 @@ config GPIO_MCP23S08
 	  This provides a GPIO interface supporting inputs and outputs.
 	  The I2C versions of the chips can be used as interrupt-controller.
 
+config GPIO_PCAL6524
+	bool "PCAL6524 GPIO expander"
+	depends on I2C
+	help
+	  GPIO driver for PCAL6524 I2C-based GPIO expander.
+
+config GPIO_KTS1620
+	bool "KTS1620 GPIO expander"
+	depends on I2C
+	help
+	  GPIO driver for KTS1620 I2C-based GPIO expander.
+
 endmenu
 
 menu "USB GPIO expanders"
@@ -1059,5 +1071,11 @@ config GPIO_VIPERBOARD
           of the module parameters.
 
 endmenu
+
+config SEC_GPIO_DVS
+	tristate "setting Samsung GPIO debugging and verification system"
+	help
+	  To verify gpio configurations of devices, set this feature.
+	  This feature should be enabled for user-debug mode.
 
 endif

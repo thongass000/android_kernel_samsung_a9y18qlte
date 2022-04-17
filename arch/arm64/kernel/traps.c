@@ -46,7 +46,14 @@
 #include <asm/esr.h>
 #include <asm/edac.h>
 
+#include <linux/sec_debug.h>
+#include <linux/sec_debug_summary.h>
+
 #include <trace/events/exception.h>
+
+#ifdef CONFIG_USER_RESET_DEBUG
+#include <linux/sec_debug_user_reset.h>
+#endif
 
 static const char *handler[]= {
 	"Synchronous Abort",
@@ -60,13 +67,12 @@ int show_unhandled_signals = 0;
 /*
  * Dump out the contents of some memory nicely...
  */
-static void dump_mem(const char *lvl, const char *str, unsigned long bottom,
-		     unsigned long top, bool compat)
+void dump_mem(const char *lvl, const char *str, unsigned long bottom,
+		     unsigned long top)
 {
 	unsigned long first;
 	mm_segment_t fs;
 	int i;
-	unsigned int width = compat ? 4 : 8;
 
 	/*
 	 * We need to switch to kernel mode so that we can use __get_user
@@ -84,22 +90,13 @@ static void dump_mem(const char *lvl, const char *str, unsigned long bottom,
 		memset(str, ' ', sizeof(str));
 		str[sizeof(str) - 1] = '\0';
 
-		for (p = first, i = 0; i < (32 / width)
-					&& p < top; i++, p += width) {
+		for (p = first, i = 0; i < 8 && p < top; i++, p += 4) {
 			if (p >= bottom && p < top) {
-				unsigned long val;
-
-				if (width == 8) {
-					if (__get_user(val, (unsigned long *)p) == 0)
-						sprintf(str + i * 17, " %016lx", val);
-					else
-						sprintf(str + i * 17, " ????????????????");
-				} else {
-					if (__get_user(val, (unsigned int *)p) == 0)
-						sprintf(str + i * 9, " %08lx", val);
-					else
-						sprintf(str + i * 9, " ????????");
-				}
+				unsigned int val;
+				if (__get_user(val, (unsigned int *)p) == 0)
+					sprintf(str + i * 9, " %08x", val);
+				else
+					sprintf(str + i * 9, " ????????");
 			}
 		}
 		printk("%s%04lx:%s\n", lvl, first & 0xffff, str);
@@ -230,7 +227,7 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 				stack = IRQ_STACK_TO_TASK_STACK(irq_stack_ptr);
 
 			dump_mem("", "Exception stack", stack,
-				 stack + sizeof(struct pt_regs), false);
+				 stack + sizeof(struct pt_regs));
 		}
 	}
 
@@ -271,6 +268,17 @@ static int __die(const char *str, int err, struct pt_regs *regs)
 		 end_of_stack(tsk));
 
 	if (!user_mode(regs) || in_interrupt()) {
+#ifdef CONFIG_SEC_DEBUG
+		if (THREAD_SIZE + (unsigned long)task_stack_page(tsk) - regs->sp
+			> THREAD_SIZE) {
+			dump_mem(KERN_EMERG, "Stack: ", regs->sp,
+					THREAD_SIZE / 4 + regs->sp);
+		} else {
+			dump_mem(KERN_EMERG, "Stack: ", regs->sp, THREAD_SIZE
+					+ (unsigned long)task_stack_page(tsk));
+		}
+#endif
+
 		dump_backtrace(regs, tsk);
 		dump_instr(KERN_EMERG, regs);
 	}
@@ -288,6 +296,7 @@ static unsigned long oops_begin(void)
 	unsigned long flags;
 
 	oops_enter();
+	secdbg_sched_msg("!!die!!");
 
 	/* racy, but better than risking deadlock. */
 	raw_local_irq_save(flags);
@@ -342,6 +351,7 @@ void die(const char *str, struct pt_regs *regs, int err)
 	if (bug_type != BUG_TRAP_TYPE_NONE)
 		str = "Oops - BUG";
 
+	sec_debug_save_die_info(str, regs);
 	ret = __die(str, err, regs);
 
 	oops_end(flags, regs, ret);
@@ -559,6 +569,11 @@ asmlinkage void bad_mode(struct pt_regs *regs, int reason, unsigned int esr)
 {
 	console_verbose();
 
+#ifdef CONFIG_USER_RESET_DEBUG
+	sec_debug_save_badmode_info(reason, handler[reason],
+			esr, esr_get_class_string(esr));
+#endif
+	
 	pr_crit("Bad mode in %s handler detected, code 0x%08x -- %s\n",
 		handler[reason], esr, esr_get_class_string(esr));
 

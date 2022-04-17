@@ -133,11 +133,14 @@ static int qti_ice_setting_config(struct request *req,
 		memcpy(&setting->crypto_data, crypto_data,
 				sizeof(setting->crypto_data));
 
-		if (rq_data_dir(req) == WRITE)
+		if (unlikely(req->cmd_flags & REQ_BYPASS)) {
+			setting->encr_bypass = true;
+			setting->decr_bypass = true;
+		} else if (rq_data_dir(req) == WRITE) {
 			setting->encr_bypass = false;
-		else if (rq_data_dir(req) == READ)
+		} else if (rq_data_dir(req) == READ) {
 			setting->decr_bypass = false;
-		else {
+		} else {
 			/* Should I say BUG_ON */
 			setting->encr_bypass = true;
 			setting->decr_bypass = true;

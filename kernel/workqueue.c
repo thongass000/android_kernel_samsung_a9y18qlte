@@ -53,6 +53,8 @@
 
 #include "workqueue_internal.h"
 
+#include <linux/sec_debug.h>
+
 enum {
 	/*
 	 * worker_pool flags
@@ -2073,6 +2075,9 @@ __acquires(&pool->lock)
 	lock_map_acquire_read(&pwq->wq->lockdep_map);
 	lock_map_acquire(&lockdep_map);
 	trace_workqueue_execute_start(work);
+
+	secdbg_sched_msg("@%pS", worker->current_func);
+
 	worker->current_func(work);
 	/*
 	 * While we must be careful to not use "work" after this, the trace

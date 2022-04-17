@@ -430,7 +430,6 @@ static void diag_send_rsp(unsigned char *buf, int len, int pid)
 {
 	struct diag_md_session_t *session_info = NULL, *info = NULL;
 	uint8_t hdlc_disabled;
-
 	mutex_lock(&driver->md_session_lock);
 	info = diag_md_session_get_pid(pid);
 	session_info = (info) ? info :
@@ -440,7 +439,6 @@ static void diag_send_rsp(unsigned char *buf, int len, int pid)
 	else
 		hdlc_disabled = driver->hdlc_disabled;
 	mutex_unlock(&driver->md_session_lock);
-
 	if (hdlc_disabled)
 		pack_rsp_and_send(buf, len, pid);
 	else

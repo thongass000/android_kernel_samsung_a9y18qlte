@@ -100,7 +100,7 @@ static void slpi_load_fw(struct work_struct *slpi_ldr_work)
 		goto fail;
 	}
 
-	priv->pil_h = subsystem_get_with_fwname("slpi", firmware_name);
+	priv->pil_h = subsystem_get_with_fwname("adsp", firmware_name);
 	if (IS_ERR(priv->pil_h)) {
 		dev_err(&pdev->dev, "%s: pil get failed,\n",
 			__func__);

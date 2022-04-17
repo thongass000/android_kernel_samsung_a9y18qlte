@@ -95,6 +95,23 @@ config MSM_EEPROM
           and also provides support for writing data in case of FLASH ROM.
 	  Currently supports I2C, CCI and SPI protocol
 
+config MSM_FRONT_EEPROM
+        bool "Qualcomm MSM Camera ROM Interface for Calibration support"
+        depends on MSMB_CAMERA
+        ---help---
+          Enable support for ROM Interface for Calibration
+          Provides interface for reading the Claibration data.
+          and also provides support for writing data in case of FLASH ROM.
+          Currently supports I2C, CCI and SPI protocol
+
+config MSM_OTP
+        bool "Qualcomm MSM Camera OTP Interface for Calibration support"
+        depends on MSMB_CAMERA
+        ---help---
+          Enable support for OTP Interface for Calibration
+          Provides interface for reading the Calibration data.
+          and also provides support for writing data
+
 config MSM_ISPIF
         bool "QTI MSM Image Signal Processing interface support"
         depends on MSMB_CAMERA
@@ -203,6 +220,13 @@ config OV12830
 		snapshot config = 4224 * 3000 at 15 fps.
 		2 lanes max fps is 18, 4 lanes max fps is 24.
 
+config S5K5E9YX
+	bool "5E9 Sensor for camera"
+	depends on MSMB_CAMERA
+	---help---
+		5MP sensor
+		Rear sensor
+
 config MSM_V4L2_VIDEO_OVERLAY_DEVICE
 	tristate "QTI MSM V4l2 video overlay device"
 	---help---
@@ -235,6 +259,18 @@ config MSM_FD
 	 ---help---
 	    Enables support for the MSM FD face detection engine.
 
+config CAMERA_SYSFS_V2
+	bool "CAMERA SYS"
+	depends on MSMB_CAMERA
+	---help---
+		CAMERA SYS.
+
+config USE_CAMERA_HW_BIG_DATA
+	bool "CAMERA HW SYS"
+	depends on MSMB_CAMERA
+	---help---
+		CAMERA HW SYS.
+
 config MSM_JPEGDMA
 	tristate "QTI MSM Jpeg dma"
         depends on MSMB_CAMERA
@@ -253,3 +289,62 @@ config MSM_SEC_CCI_DEBUG
 	---help---
 	  Enables simulation of secure camera for Secure CCI Realy
 	  debugging.
+
+config CAMERA_SYSFS_V2
+	bool "CAMERA SYS"
+	depends on MSMB_CAMERA
+	---help---
+		CAMERA SYS.
+
+config SAMSUNG_MULTI_CAMERA
+	tristate "Multi camera support"
+	depends on MSMB_CAMERA
+	default n
+	---help---
+	  Enables support for multi camera.
+
+config GET_REAR_MODULE_ID
+        tristate "Rear Camera Module ID from 0xAE"
+        depends on MSMB_CAMERA
+        ---help---
+          Enable support to get module ID 10byte from eeprom 0xAE then 
+          set to sys_class_camera_rear_moduleid
+
+config GET_FRONT_MODULE_ID
+        tristate "Front Camera Module ID from 0xAE"
+        depends on MSMB_CAMERA
+        ---help---
+          Enable support to get module ID 10byte from eeprom 0xAE then 
+          set to sys_class_camera_front_moduleid
+
+config CAMERA_DUAL_REAR
+        tristate "Rear Multi camera support"
+        depends on MSMB_CAMERA
+        ---help---
+          Enables support for rear multi camera.
+
+config CAMERA_QUAD_REAR
+        tristate "Rear 3 and 4 camera support"
+        depends on MSMB_CAMERA
+        ---help---
+          Enables support for rear 3 and 4 camera.
+
+config CAMERA_DUAL_FRONT
+        tristate "Front Multi camera support"
+        depends on MSMB_CAMERA
+        ---help---
+          Enables support for front multi camera.
+config SAMSUNG_SECURE_CAMERA
+        tristate "Flash for Secure camera"
+        depends on MSMB_CAMERA
+        default n
+        ---help---
+        Enables support for flash for secure camera
+
+config A9Y18_ACTUATOR
+        tristate "ACTUATOR TIC NOISE FIX"
+        depends on MSMB_CAMERA
+        ---help---
+          A9Y18 actuator has tic noise issue when exit the caemra
+          fixed the issue with this feature		  
+		  

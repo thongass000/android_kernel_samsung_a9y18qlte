@@ -687,6 +687,9 @@ void __weak arch_enable_nonboot_cpus_end(void)
 {
 }
 
+#ifdef CONFIG_SEC_PM
+extern void do_wakeup_boost(void);
+#endif
 void enable_nonboot_cpus(void)
 {
 	int cpu, error;
@@ -699,7 +702,9 @@ void enable_nonboot_cpus(void)
 		goto out;
 
 	pr_info("Enabling non-boot CPUs ...\n");
-
+#ifdef CONFIG_SEC_PM
+	do_wakeup_boost();
+#endif
 	arch_enable_nonboot_cpus_begin();
 
 	for_each_cpu(cpu, frozen_cpus) {

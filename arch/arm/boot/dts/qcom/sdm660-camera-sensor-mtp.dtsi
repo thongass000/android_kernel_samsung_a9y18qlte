@@ -36,7 +36,6 @@
 		regulator-min-microvolt = <3600000>;
 		regulator-max-microvolt = <3600000>;
 		enable-active-high;
-		gpio = <&tlmm 51 0>;
 		vin-supply = <&pm660l_bob>;
 	};
 
@@ -398,8 +397,6 @@
 				 &cam_sensor_front_iris_active>;
 		pinctrl-1 = <&cam_sensor_mclk3_suspend
 				 &cam_sensor_front_iris_suspend>;
-		gpios = <&tlmm 35 0>,
-			<&tlmm 52 0>;
 		qcom,gpio-reset = <1>;
 		qcom,gpio-req-tbl-num = <0 1>;
 		qcom,gpio-req-tbl-flags = <1 0>;

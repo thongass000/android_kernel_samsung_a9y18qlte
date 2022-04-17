@@ -44,6 +44,8 @@
 
 #include "peripheral-loader.h"
 
+#include <linux/sec_debug.h>
+
 #define pil_err(desc, fmt, ...)						\
 	dev_err(desc->dev, "%s: " fmt, desc->name, ##__VA_ARGS__)
 #define pil_info(desc, fmt, ...)					\
@@ -921,6 +923,7 @@ int pil_boot(struct pil_desc *desc)
 	struct pil_priv *priv = desc->priv;
 	bool mem_protect = false;
 	bool hyp_assign = false;
+	bool secure_check_fail = false;
 
 	if (desc->shutdown_fail)
 		pil_err(desc, "Subsystem shutdown failed previously!\n");
@@ -986,6 +989,7 @@ int pil_boot(struct pil_desc *desc)
 	if (ret) {
 		pil_err(desc, "Initializing image failed(rc:%d)\n", ret);
 		subsys_set_error(desc->subsys_dev, firmware_error_msg);
+		secure_check_fail = true;
 		goto err_boot;
 	}
 
@@ -1035,6 +1039,7 @@ int pil_boot(struct pil_desc *desc)
 	if (ret) {
 		pil_err(desc, "Failed to bring out of reset(rc:%d)\n", ret);
 		subsys_set_error(desc->subsys_dev, firmware_error_msg);
+		secure_check_fail = true;
 		goto err_auth_and_reset;
 	}
 	trace_pil_event("reset_done", desc);
@@ -1074,6 +1079,11 @@ out:
 			priv->region = NULL;
 		}
 		pil_release_mmap(desc);
+
+		if (secure_check_fail && (ret == -EINVAL) &&
+		    (!strcmp(desc->name, "mba") ||
+		     !strcmp(desc->name, "modem")))
+			sec_peripheral_secure_check_fail();
 	}
 	return ret;
 }

@@ -70,6 +70,7 @@
 #define VIDC_MAX_ENCODE_SESSIONS        16
 
 
+
 enum vidc_status {
 	VIDC_ERR_NONE = 0x0,
 	VIDC_ERR_FAIL = 0x80000000,

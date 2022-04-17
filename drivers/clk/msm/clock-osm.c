@@ -3407,11 +3407,15 @@ static int cpu_clock_osm_driver_probe(struct platform_device *pdev)
 	spin_lock_init(&perfcl_clk.lock);
 
 	pwrcl_clk.panic_notifier.notifier_call = clk_osm_panic_callback;
+#ifndef CONFIG_SEC_DEBUG
 	atomic_notifier_chain_register(&panic_notifier_list,
 				       &pwrcl_clk.panic_notifier);
+#endif
 	perfcl_clk.panic_notifier.notifier_call = clk_osm_panic_callback;
+#ifndef CONFIG_SEC_DEBUG
 	atomic_notifier_chain_register(&panic_notifier_list,
 				       &perfcl_clk.panic_notifier);
+#endif
 
 	rc = of_msm_clock_register(pdev->dev.of_node, cpu_clocks_osm,
 				   ARRAY_SIZE(cpu_clocks_osm));

@@ -96,11 +96,16 @@ struct msm_laser_led_cfg_data_t32 {
 struct eeprom_read_t32 {
 	compat_uptr_t dbuffer;
 	uint32_t num_bytes;
+	uint32_t addr;
+	uint32_t comp_size;
 };
 
 struct eeprom_write_t32 {
 	compat_uptr_t dbuffer;
 	uint32_t num_bytes;
+	uint32_t addr;
+	compat_uptr_t write_size;
+	uint8_t compress;
 };
 
 struct msm_eeprom_info_t32 {
@@ -111,7 +116,7 @@ struct msm_eeprom_info_t32 {
 
 struct msm_eeprom_cfg_data32 {
 	enum eeprom_cfg_type_t cfgtype;
-	uint8_t is_supported;
+	uint16_t is_supported;
 	union {
 		char eeprom_name[MAX_SENSOR_NAME];
 		struct eeprom_get_t get_data;

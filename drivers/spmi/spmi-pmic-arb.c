@@ -536,6 +536,11 @@ static void cleanup_irq(struct spmi_pmic_arb *pa, u16 apid, int id)
 	writel_relaxed(irq_mask, pa->intr + pa->ver_ops->irq_clear(apid));
 }
 
+#ifdef CONFIG_SEC_PM
+extern char last_resume_kernel_reason[];
+extern int last_resume_kernel_reason_len;
+#endif
+
 static void periph_interrupt(struct spmi_pmic_arb *pa, u16 apid, bool show)
 {
 	unsigned int irq;
@@ -543,7 +548,9 @@ static void periph_interrupt(struct spmi_pmic_arb *pa, u16 apid, bool show)
 	int id;
 	u8 sid = (pa->apid_data[apid].ppid >> 8) & 0xF;
 	u8 per = pa->apid_data[apid].ppid & 0xFF;
-
+#ifdef CONFIG_SEC_PM
+	irq_hw_number_t hwirq;
+#endif
 	status = readl_relaxed(pa->intr + pa->ver_ops->irq_status(apid));
 	while (status) {
 		id = ffs(status) - 1;
@@ -562,9 +569,17 @@ static void periph_interrupt(struct spmi_pmic_arb *pa, u16 apid, bool show)
 				name = "stray irq";
 			else if (desc->action && desc->action->name)
 				name = desc->action->name;
-
+#ifdef CONFIG_SEC_PM
+			hwirq = HWIRQ(sid, per, id, apid);
+			printk("Resume caused by IRQ %d(PIN %lu) %s [0x%01x, 0x%02x,0x%01x]\n",
+				irq, hwirq, name, sid, per, id);
+			last_resume_kernel_reason_len +=
+				sprintf(last_resume_kernel_reason + last_resume_kernel_reason_len,
+				"%d,%lu,%s|", irq, hwirq, name);
+#else
 			pr_warn("spmi_show_resume_irq: %d triggered [0x%01x, 0x%02x, 0x%01x] %s\n",
 				irq, sid, per, id, name);
+#endif
 		} else {
 			generic_handle_irq(irq);
 		}

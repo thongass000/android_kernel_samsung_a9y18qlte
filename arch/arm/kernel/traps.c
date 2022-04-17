@@ -39,7 +39,8 @@
 #include <asm/tls.h>
 #include <asm/system_misc.h>
 #include <asm/opcodes.h>
-
+#include <linux/sec_debug.h>
+#include <linux/sec_debug_summary.h>
 
 static const char *handler[]= {
 	"prefetch abort",
@@ -264,8 +265,19 @@ static int __die(const char *str, int err, struct pt_regs *regs)
 		 TASK_COMM_LEN, tsk->comm, task_pid_nr(tsk), end_of_stack(tsk));
 
 	if (!user_mode(regs) || in_interrupt()) {
+#ifdef CONFIG_SEC_DEBUG
+		if (THREAD_SIZE + (unsigned long)task_stack_page(tsk) - regs->ARM_sp
+			> THREAD_SIZE) {
+			dump_mem(KERN_EMERG, "Stack: ", regs->ARM_sp,
+					THREAD_SIZE/4 + regs->ARM_sp);
+		} else {
+			dump_mem(KERN_EMERG, "Stack: ", regs->ARM_sp,
+					THREAD_SIZE + (unsigned long)task_stack_page(tsk));
+		}
+#else
 		dump_mem(KERN_EMERG, "Stack: ", regs->ARM_sp,
 			 THREAD_SIZE + (unsigned long)task_stack_page(tsk));
+#endif
 		dump_backtrace(regs, tsk);
 		dump_instr(KERN_EMERG, regs);
 	}
@@ -332,10 +344,14 @@ void die(const char *str, struct pt_regs *regs, int err)
 	unsigned long flags = oops_begin();
 	int sig = SIGSEGV;
 
+	secdbg_sched_msg("!!die!!");
+
 	if (!user_mode(regs))
 		bug_type = report_bug(regs->ARM_pc, regs);
 	if (bug_type != BUG_TRAP_TYPE_NONE)
 		str = "Oops - BUG";
+
+	sec_debug_save_die_info(str, regs);
 
 	if (__die(str, err, regs))
 		sig = 0;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002,2007-2016,2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2002,2007-2016,2019-2020 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -105,6 +105,7 @@ struct adreno_ringbuffer_pagetable_info {
  * or how long it has been scheduled for after preempting in
  * @starve_timer_state: Indicates the state of the wait.
  * @preempt_lock: Lock to protect the wptr pointer while it is being updated
+ * @timer: Starvation timer for this ringbuffer
  */
 struct adreno_ringbuffer {
 	uint32_t flags;
@@ -127,6 +128,7 @@ struct adreno_ringbuffer {
 	unsigned long sched_timer;
 	enum adreno_dispatcher_starve_timer_states starve_timer_state;
 	spinlock_t preempt_lock;
+	struct timer_list timer;
 	/**
 	 * @profile_desc: global memory to construct IB1s to do user side
 	 * profiling
@@ -171,6 +173,9 @@ int adreno_ringbuffer_issuecmds(struct adreno_ringbuffer *rb,
 
 void adreno_ringbuffer_submit(struct adreno_ringbuffer *rb,
 		struct adreno_submit_time *time);
+
+int adreno_ringbuffer_submit_spin_nosync(struct adreno_ringbuffer *rb,
+		struct adreno_submit_time *time, unsigned int timeout);
 
 int adreno_ringbuffer_submit_spin(struct adreno_ringbuffer *rb,
 		struct adreno_submit_time *time, unsigned int timeout);

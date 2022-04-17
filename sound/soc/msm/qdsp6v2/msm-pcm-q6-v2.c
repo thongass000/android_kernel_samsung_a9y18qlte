@@ -1026,7 +1026,7 @@ static int msm_pcm_capture_close(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *soc_prtd = substream->private_data;
 	struct msm_audio *prtd = runtime->private_data;
 	int dir = OUT;
-	struct msm_plat_data *pdata;
+	struct msm_plat_data *pdata = NULL;
 
 	pr_debug("%s\n", __func__);
 
@@ -1238,7 +1238,7 @@ static int msm_pcm_adsp_stream_cmd_put(struct snd_kcontrol *kcontrol,
 	}
 
 	if (event_data->payload_len > sizeof(ucontrol->value.bytes.data)
-			- sizeof(struct msm_adsp_event_data)) {
+					- sizeof(struct msm_adsp_event_data)) {
 		pr_err("%s param length=%d  exceeds limit",
 			__func__, event_data->payload_len);
 		ret = -EINVAL;
@@ -1429,9 +1429,9 @@ static int msm_pcm_volume_ctl_put(struct snd_kcontrol *kcontrol,
 	struct snd_pcm_substream *substream =
 		vol->pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
 	struct msm_audio *prtd;
-	int volume = ucontrol->value.integer.value[0];
 	struct snd_soc_pcm_runtime *soc_prtd = NULL;
 	struct msm_plat_data *pdata = NULL;
+	int volume = ucontrol->value.integer.value[0];
 
 	pr_debug("%s: volume : 0x%x\n", __func__, volume);
 	if (!substream) {
@@ -1626,9 +1626,9 @@ static int msm_pcm_chmap_ctl_put(struct snd_kcontrol *kcontrol,
 	struct snd_pcm_chmap *info = snd_kcontrol_chip(kcontrol);
 	unsigned int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 	struct snd_pcm_substream *substream;
-	struct msm_audio *prtd;
 	struct snd_soc_pcm_runtime *rtd = NULL;
 	struct msm_plat_data *pdata = NULL;
+	struct msm_audio *prtd;
 
 	pr_debug("%s", __func__);
 	substream = snd_pcm_chmap_substream(info, idx);

@@ -656,6 +656,12 @@ static u32 get_frame_size(struct msm_vidc_inst *inst,
 		frame_size = fmt->get_frame_size(plane,
 					inst->capability.mbs_per_frame.max,
 					MB_SIZE_IN_PIXEL);
+		if ((inst->flags & VIDC_SECURE) && (fmt->fourcc == V4L2_PIX_FMT_VP9 )) {
+			dprintk(VIDC_DBG,
+				"Change secure input buffer size from %u to %u\n",
+				frame_size, ALIGN(frame_size/2, SZ_4K));
+				frame_size = ALIGN(frame_size/2, SZ_4K);
+		}
 		if (inst->buffer_size_limit &&
 			(inst->buffer_size_limit < frame_size)) {
 			frame_size = inst->buffer_size_limit;
@@ -1636,7 +1642,8 @@ static int set_max_internal_buffers_size(struct msm_vidc_inst *inst)
 	frame_sz.height =
 		(inst->capability.mbs_per_frame.max * 256) /
 		inst->capability.width.max;
-
+	msm_comm_try_set_prop(inst, HAL_PARAM_FRAME_SIZE, &frame_sz);
+		
 	dprintk(VIDC_DBG,
 		"Max buffer reqs, buffer type = %d width = %d, height = %d, max_mbs_per_frame = %d\n",
 		frame_sz.buffer_type, frame_sz.width,
@@ -1668,11 +1675,10 @@ static int set_max_internal_buffers_size(struct msm_vidc_inst *inst)
 				__func__, rc);
 			goto alloc_fail;
 		}
+		frame_sz.buffer_type = HAL_BUFFER_OUTPUT2;
+		msm_comm_try_set_prop(inst, HAL_PARAM_FRAME_SIZE, &frame_sz);
 	}
-
-	msm_comm_try_set_prop(inst, HAL_PARAM_FRAME_SIZE, &frame_sz);
-	frame_sz.buffer_type = HAL_BUFFER_OUTPUT2;
-	msm_comm_try_set_prop(inst, HAL_PARAM_FRAME_SIZE, &frame_sz);
+	
 	rc = msm_comm_try_get_bufreqs(inst);
 	if (rc) {
 		dprintk(VIDC_ERR,
@@ -1721,6 +1727,10 @@ static int set_max_internal_buffers_size(struct msm_vidc_inst *inst)
 				output_count_actual, rc);
 			goto alloc_fail;
 		}
+		frame_sz.buffer_type = HAL_BUFFER_OUTPUT;
+		frame_sz.width = inst->prop.width[CAPTURE_PORT];
+		frame_sz.height = inst->prop.height[CAPTURE_PORT];
+		msm_comm_try_set_prop(inst, HAL_PARAM_FRAME_SIZE, &frame_sz);		
 	}
 
 	frame_sz.buffer_type = HAL_BUFFER_INPUT;

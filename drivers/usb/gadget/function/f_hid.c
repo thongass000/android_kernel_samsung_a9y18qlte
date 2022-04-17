@@ -306,7 +306,6 @@ static ssize_t f_hidg_read(struct file *file, char __user *buffer,
 		ret = usb_ep_queue(hidg->out_ep, req, GFP_KERNEL);
 		if (ret < 0) {
 			free_ep_req(hidg->out_ep, req);
-			return ret;
 		}
 	} else {
 		spin_lock_irqsave(&hidg->read_spinlock, flags);
@@ -617,7 +616,7 @@ static void hidg_disable(struct usb_function *f)
 
 	usb_ep_disable(hidg->in_ep);
 	usb_ep_disable(hidg->out_ep);
-
+	
 	spin_lock_irqsave(&hidg->read_spinlock, flags);
 	list_for_each_entry_safe(list, next, &hidg->completed_out_req, list) {
 		free_ep_req(hidg->out_ep, list->req);

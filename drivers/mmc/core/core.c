@@ -52,6 +52,12 @@
 #include "sd_ops.h"
 #include "sdio_ops.h"
 
+#ifdef CONFIG_MMC_SUPPORT_STLOG
+#include <linux/fslog.h>
+#else
+#define ST_LOG(fmt,...)
+#endif
+
 EXPORT_TRACEPOINT_SYMBOL_GPL(mmc_blk_erase_start);
 EXPORT_TRACEPOINT_SYMBOL_GPL(mmc_blk_erase_end);
 EXPORT_TRACEPOINT_SYMBOL_GPL(mmc_blk_rw_start);
@@ -486,14 +492,14 @@ int mmc_recovery_fallback_lower_speed(struct mmc_host *host)
 		mmc_host_clear_sdr104(host);
 		err = mmc_hw_reset(host);
 		host->card->sdr104_blocked = true;
+
+		if (err)
+			pr_err("%s: %s: Fallback to lower speed mode failed with err=%d\n",
+				mmc_hostname(host), __func__, err);
 	} else if (mmc_card_sd(host->card)) {
 		/* If sdr104_wa is not present, just return status */
 		err = host->bus_ops->alive(host);
 	}
-	if (err)
-		pr_err("%s: %s: Fallback to lower speed mode failed with err=%d\n",
-			mmc_hostname(host), __func__, err);
-
 	return err;
 }
 
@@ -1379,7 +1385,7 @@ int mmc_set_auto_bkops(struct mmc_card *card, bool enable)
 			mmc_update_bkops_auto_off(&card->bkops.stats);
 		}
 		card->ext_csd.bkops_en = bkops_en;
-		pr_debug("%s: %s: bkops state %x\n",
+		pr_info("%s: %s: bkops state %x\n",
 				mmc_hostname(card->host), __func__, bkops_en);
 	}
 out:
@@ -1891,9 +1897,10 @@ EXPORT_SYMBOL(mmc_start_req);
  */
 void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 {
+#ifdef CONFIG_MMC_BLOCK_DEFERRED_RESUME
 	if (mmc_bus_needs_resume(host))
 		mmc_resume_bus(host);
-
+#endif
 	__mmc_start_req(host, mrq);
 	mmc_wait_for_req_done(host, mrq);
 }
@@ -2241,7 +2248,7 @@ int __mmc_claim_host(struct mmc_host *host, atomic_t *abort)
 	spin_unlock_irqrestore(&host->lock, flags);
 	remove_wait_queue(&host->wq, &wait);
 
-	if (pm)
+	if (pm && (host->caps & MMC_CAP_NONREMOVABLE))
 		pm_runtime_get_sync(mmc_dev(host));
 
 	if (host->ops->enable && !stop && host->claim_cnt == 1)
@@ -2281,7 +2288,7 @@ int mmc_try_claim_host(struct mmc_host *host, unsigned int delay_ms)
 			mmc_delay(10);
 	} while (!claimed_host && retry_cnt--);
 
-	if (pm)
+	if (pm && (host->caps & MMC_CAP_NONREMOVABLE))
 		pm_runtime_get_sync(mmc_dev(host));
 
 	if (host->ops->enable && claimed_host && host->claim_cnt == 1)
@@ -2315,8 +2322,10 @@ void mmc_release_host(struct mmc_host *host)
 		host->claimer = NULL;
 		spin_unlock_irqrestore(&host->lock, flags);
 		wake_up(&host->wq);
-		pm_runtime_mark_last_busy(mmc_dev(host));
-		pm_runtime_put_autosuspend(mmc_dev(host));
+		if (host->caps & MMC_CAP_NONREMOVABLE) {
+			pm_runtime_mark_last_busy(mmc_dev(host));
+			pm_runtime_put_autosuspend(mmc_dev(host));
+		}
 	}
 }
 EXPORT_SYMBOL(mmc_release_host);
@@ -2329,9 +2338,10 @@ void mmc_get_card(struct mmc_card *card)
 {
 	pm_runtime_get_sync(&card->dev);
 	mmc_claim_host(card->host);
-
+#ifdef CONFIG_MMC_BLOCK_DEFERRED_RESUME
 	if (mmc_bus_needs_resume(card->host))
 		mmc_resume_bus(card->host);
+#endif
 }
 EXPORT_SYMBOL(mmc_get_card);
 
@@ -2449,13 +2459,6 @@ void mmc_ungate_clock(struct mmc_host *host)
 		WARN_ON(host->ios.clock);
 		/* This call will also set host->clk_gated to false */
 		__mmc_set_clock(host, host->clk_old);
-		/*
-		 * We have seen that host controller's clock tuning circuit may
-		 * go out of sync if controller clocks are gated.
-		 * To workaround this issue, we are triggering retuning of the
-		 * tuning circuit after ungating the controller clocks.
-		 */
-		mmc_retune_needed(host);
 	}
 }
 
@@ -3293,6 +3296,7 @@ int mmc_resume_bus(struct mmc_host *host)
 		return -EINVAL;
 
 	pr_debug("%s: Starting deferred resume\n", mmc_hostname(host));
+	wake_lock(&host->detect_wake_lock);
 	spin_lock_irqsave(&host->lock, flags);
 	host->bus_resume_flags &= ~MMC_BUSRESUME_NEEDS_RESUME;
 	spin_unlock_irqrestore(&host->lock, flags);
@@ -3328,6 +3332,7 @@ int mmc_resume_bus(struct mmc_host *host)
 err_reset:
 	mmc_bus_put(host);
 	pr_debug("%s: Deferred resume completed\n", mmc_hostname(host));
+	wake_unlock(&host->detect_wake_lock);
 	return err;
 }
 EXPORT_SYMBOL(mmc_resume_bus);
@@ -3404,6 +3409,9 @@ static void _mmc_detect_change(struct mmc_host *host, unsigned long delay,
 	if (cd_irq && mmc_bus_manual_resume(host))
 		host->ignore_bus_resume_flags = true;
 
+	/* wake lock : 500ms */
+	if (!(host->caps & MMC_CAP_NONREMOVABLE))
+		wake_lock_timeout(&host->detect_wake_lock, HZ / 2);
 	mmc_schedule_delayed_work(&host->detect, delay);
 }
 
@@ -3962,7 +3970,8 @@ int mmc_can_sanitize(struct mmc_card *card)
 {
 	if (!mmc_can_trim(card) && !mmc_can_erase(card))
 		return 0;
-	if (card->ext_csd.sec_feature_support & EXT_CSD_SEC_SANITIZE)
+	if ((card->ext_csd.sec_feature_support & EXT_CSD_SEC_SANITIZE) &&
+			(card->host->caps2 & MMC_CAP2_SANITIZE))
 		return 1;
 	return 0;
 }
@@ -4218,14 +4227,20 @@ int _mmc_detect_card_removed(struct mmc_host *host)
 	if (ret) {
 		if (host->ops->get_cd && host->ops->get_cd(host)) {
 			ret = mmc_recovery_fallback_lower_speed(host);
+			if (ret) {
+				mmc_card_set_removed(host->card);
+				ST_LOG("<%s> %s: card remove detected\n",
+						__func__, mmc_hostname(host));
+			}
 		} else {
 			mmc_card_set_removed(host->card);
 			if (host->card->sdr104_blocked) {
 				mmc_host_set_sdr104(host);
 				host->card->sdr104_blocked = false;
 			}
-			pr_debug("%s: card remove detected\n",
-					mmc_hostname(host));
+			pr_debug("%s: card remove detected\n", mmc_hostname(host));
+			ST_LOG("<%s> %s: card remove detected\n",
+					__func__, mmc_hostname(host));
 		}
 	}
 
@@ -4247,13 +4262,16 @@ int mmc_detect_card_removed(struct mmc_host *host)
 	 * The card will be considered unchanged unless we have been asked to
 	 * detect a change or host requires polling to provide card detection.
 	 */
-	if (!host->detect_change && !(host->caps & MMC_CAP_NEEDS_POLL))
+	if (!host->detect_change && !(host->caps & MMC_CAP_NEEDS_POLL) &&
+			!(host->caps2 & MMC_CAP2_DETECT_ON_ERR))
 		return ret;
 
 	host->detect_change = 0;
 	if (!ret) {
 		ret = _mmc_detect_card_removed(host);
-		if (ret && (host->caps & MMC_CAP_NEEDS_POLL)) {
+		if (ret && (host->caps & MMC_CAP_NEEDS_POLL ||
+					mmc_card_removed(card) ||
+					host->caps2 & MMC_CAP2_DETECT_ON_ERR)) {
 			/*
 			 * Schedule a detect work as soon as possible to let a
 			 * rescan handle the card removal.
@@ -4284,6 +4302,7 @@ void mmc_rescan(struct work_struct *work)
 	unsigned long flags;
 	struct mmc_host *host =
 		container_of(work, struct mmc_host, detect.work);
+	bool extend_wakelock = false;
 
 	if (host->trigger_card_event && host->ops->card_event) {
 		host->ops->card_event(host);
@@ -4301,6 +4320,10 @@ void mmc_rescan(struct work_struct *work)
 	if ((host->caps & MMC_CAP_NONREMOVABLE) && host->rescan_entered)
 		return;
 	host->rescan_entered = 1;
+
+	/* if there is a card present */
+	if (host->card)
+		extend_wakelock = true;
 
 	mmc_bus_get(host);
 
@@ -4326,6 +4349,7 @@ void mmc_rescan(struct work_struct *work)
 	/* if there still is a card present, stop here */
 	if (host->bus_ops != NULL) {
 		mmc_bus_put(host);
+		extend_wakelock = false;
 		goto out;
 	}
 
@@ -4343,11 +4367,21 @@ void mmc_rescan(struct work_struct *work)
 		goto out;
 	}
 
+#if !defined(CONFIG_SEC_HYBRID_TRAY)
+	ST_LOG("<%s> %s insertion detected",__func__,host->class_dev.kobj.name);
+#endif
 	mmc_claim_host(host);
-	mmc_rescan_try_freq(host, host->f_min);
+	if (!mmc_rescan_try_freq(host, host->f_min))
+		extend_wakelock = true;
 	mmc_release_host(host);
 
  out:
+	host->pm_progress = 0;
+	if (extend_wakelock && !host->rescan_disable)
+		wake_lock_timeout(&host->detect_wake_lock, HZ / 2);
+	else if (wake_lock_active(&host->detect_wake_lock))
+		wake_unlock(&host->detect_wake_lock);
+
 	if (host->caps & MMC_CAP_NEEDS_POLL)
 		mmc_schedule_delayed_work(&host->detect, HZ);
 }
@@ -4553,6 +4587,13 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 		if (!host->bus_ops)
 			break;
 
+		/*
+		 * It is possible that the wake-lock has been acquired, since
+		 * its being suspended, release the wakelock
+		 */
+		if (wake_lock_active(&host->detect_wake_lock))
+			wake_unlock(&host->detect_wake_lock);
+
 		/* Validate prerequisites for suspend */
 		if (host->bus_ops->pre_suspend)
 			err = host->bus_ops->pre_suspend(host);
@@ -4584,16 +4625,23 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 
 		spin_lock_irqsave(&host->lock, flags);
 		host->rescan_disable = 0;
-		if (mmc_card_is_removable(host))
+		if (mmc_card_is_removable(host)) {
 			present = !!mmc_gpio_get_cd(host);
+			mmc_gpiod_update_status(host, present);
+		}
 
+#ifndef CONFIG_MMC_BLOCK_DEFERRED_RESUME	/* This is not needed to resume on pm_notifier */
 		if (mmc_bus_manual_resume(host) &&
 				!host->ignore_bus_resume_flags &&
 				present) {
 			spin_unlock_irqrestore(&host->lock, flags);
 			break;
 		}
+#endif
 		spin_unlock_irqrestore(&host->lock, flags);
+		/* SD sync mode will be enabled during pm_progress is set */
+		if (host->card && mmc_card_sd(host->card))
+			host->pm_progress = 1;
 		_mmc_detect_change(host, 0, false);
 
 	}

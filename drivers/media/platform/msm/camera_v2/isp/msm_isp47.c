@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -25,7 +25,10 @@
 #include "cam_soc_api.h"
 #include "msm_isp48.h"
 #include "linux/iopoll.h"
-#include "msm_cam_cx_ipeak.h"
+
+#if defined(CONFIG_USE_CAMERA_HW_BIG_DATA)
+#include "msm_sensor.h"
+#endif
 
 #undef CDBG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
@@ -496,6 +499,11 @@ void msm_vfe47_process_violation_status(
 	struct vfe_device *vfe_dev)
 {
 	uint32_t violation_status = vfe_dev->error_info.violation_status;
+#if defined(CONFIG_USE_CAMERA_HW_BIG_DATA)
+        struct cam_hw_param *hw_param = NULL;
+        uint32_t *hw_cam_position = NULL;
+        uint32_t *hw_cam_secure = NULL;
+#endif
 
 	if (violation_status > 39) {
 		pr_err("%s: invalid violation status %d\n",
@@ -505,6 +513,183 @@ void msm_vfe47_process_violation_status(
 
 	pr_err_ratelimited("%s: VFE pipeline violation status %d\n", __func__,
 		violation_status);
+
+#if defined(CONFIG_USE_CAMERA_HW_BIG_DATA)
+	msm_is_sec_get_sensor_position(&hw_cam_position);
+	if (hw_cam_position != NULL) {
+	switch(*hw_cam_position) {
+		case BACK_CAMERA_B:
+			if (!msm_is_sec_get_rear_hw_param(&hw_param)) {
+				if (hw_param != NULL && (hw_param->mipi_chk == FALSE)) {
+					switch(hw_param->comp_chk) {
+						case TRUE:
+							pr_err("[HWB_DBG][R][MIPI_C] Err\n");
+							hw_param->mipi_comp_err_cnt++;
+							hw_param->mipi_chk = TRUE;
+							hw_param->need_update_to_file = TRUE;
+							break;
+
+						case FALSE:
+							pr_err("[HWB_DBG][R][MIPI_S] Err\n");
+							hw_param->mipi_sensor_err_cnt++;
+							hw_param->mipi_chk = TRUE;
+							hw_param->need_update_to_file = TRUE;
+							break;
+
+						default:
+							pr_err("[HWB_DBG][R][MIPI] Unsupport\n");
+							break;
+					}
+				}
+			}
+			break;
+
+		case FRONT_CAMERA_B:
+			msm_is_sec_get_secure_mode(&hw_cam_secure);
+			if (hw_cam_secure != NULL) {
+				switch(*hw_cam_secure) {
+					case FALSE:
+						if (!msm_is_sec_get_front_hw_param(&hw_param)) {
+							if (hw_param != NULL && (hw_param->mipi_chk == FALSE)) {
+								switch(hw_param->comp_chk) {
+									case TRUE:
+										pr_err("[HWB_DBG][F][MIPI_C] Err\n");
+										hw_param->mipi_comp_err_cnt++;
+										hw_param->mipi_chk = TRUE;
+										hw_param->need_update_to_file = TRUE;
+										break;
+
+									case FALSE:
+										pr_err("[HWB_DBG][F][MIPI_S] Err\n");
+										hw_param->mipi_sensor_err_cnt++;
+										hw_param->mipi_chk = TRUE;
+										hw_param->need_update_to_file = TRUE;
+										break;
+
+									default:
+										pr_err("[HWB_DBG][F][MIPI] Unsupport\n");
+										break;
+								}
+							}
+						}
+
+						break;
+
+					case TRUE:
+						if (!msm_is_sec_get_iris_hw_param(&hw_param)) {
+							if (hw_param != NULL && (hw_param->mipi_chk == FALSE)) {
+								switch(hw_param->comp_chk) {
+									case TRUE:
+										pr_err("[HWB_DBG][I][MIPI_C] Err\n");
+										hw_param->mipi_comp_err_cnt++;
+										hw_param->mipi_chk = TRUE;
+										hw_param->need_update_to_file = TRUE;
+										break;
+
+									case FALSE:
+										pr_err("[HWB_DBG][I][MIPI_S] Err\n");
+										hw_param->mipi_sensor_err_cnt++;
+										hw_param->mipi_chk = TRUE;
+										hw_param->need_update_to_file = TRUE;
+										break;
+
+									default:
+										pr_err("[HWB_DBG][I][MIPI] Unsupport\n");
+										break;
+								}
+							}
+						}
+
+						break;
+
+					default:
+						pr_err("[HWB_DBG][F_I][MIPI] Unsupport\n");
+						break;
+				}
+			}
+			break;
+
+#if defined(CONFIG_SAMSUNG_MULTI_CAMERA)
+			case AUX_CAMERA_B:
+				if (!msm_is_sec_get_rear2_hw_param(&hw_param)) {
+					if (hw_param != NULL && (hw_param->mipi_chk == FALSE)) {
+						switch(hw_param->comp_chk) {
+							case TRUE:
+								pr_err("[HWB_DBG][R2][MIPI_C] Err\n");
+								hw_param->mipi_comp_err_cnt++;
+								hw_param->mipi_chk = TRUE;
+								hw_param->need_update_to_file = TRUE;
+								break;
+
+							case FALSE:
+								pr_err("[HWB_DBG][R2][MIPI_S] Err\n");
+								hw_param->mipi_sensor_err_cnt++;
+								hw_param->mipi_chk = TRUE;
+								hw_param->need_update_to_file = TRUE;
+								break;
+
+							default:
+								pr_err("[HWB_DBG][R2][MIPI] Unsupport\n");
+								break;
+						}
+					}
+				}
+				if (!msm_is_sec_get_rear3_hw_param(&hw_param)) {
+					if (hw_param != NULL && (hw_param->mipi_chk == FALSE)) {
+						switch(hw_param->comp_chk) {
+							case TRUE:
+								pr_err("[HWB_DBG][R3][MIPI_C] Err\n");
+								hw_param->mipi_comp_err_cnt++;
+								hw_param->mipi_chk = TRUE;
+								hw_param->need_update_to_file = TRUE;
+								break;
+
+							case FALSE:
+								pr_err("[HWB_DBG][R3][MIPI_S] Err\n");
+								hw_param->mipi_sensor_err_cnt++;
+								hw_param->mipi_chk = TRUE;
+								hw_param->need_update_to_file = TRUE;
+								break;
+
+							default:
+								pr_err("[HWB_DBG][R3][MIPI] Unsupport\n");
+								break;
+						}
+					}
+				}
+				if (!msm_is_sec_get_rear4_hw_param(&hw_param)) {
+					if (hw_param != NULL && (hw_param->mipi_chk == FALSE)) {
+						switch(hw_param->comp_chk) {
+							case TRUE:
+								pr_err("[HWB_DBG][R4][MIPI_C] Err\n");
+								hw_param->mipi_comp_err_cnt++;
+								hw_param->mipi_chk = TRUE;
+								hw_param->need_update_to_file = TRUE;
+								break;
+
+							case FALSE:
+								pr_err("[HWB_DBG][R4][MIPI_S] Err\n");
+								hw_param->mipi_sensor_err_cnt++;
+								hw_param->mipi_chk = TRUE;
+								hw_param->need_update_to_file = TRUE;
+								break;
+
+							default:
+								pr_err("[HWB_DBG][R4][MIPI] Unsupport\n");
+								break;
+						}
+					}
+				}
+				break;
+#endif
+
+		default:
+			pr_err("[HWB_DBG]NON][MIPI] Unsupport\n");
+			break;
+		}
+	}
+#endif
+    
 }
 
 void msm_vfe47_process_error_status(struct vfe_device *vfe_dev)
@@ -712,12 +897,10 @@ void msm_vfe47_process_epoch_irq(struct vfe_device *vfe_dev,
 void msm_isp47_preprocess_camif_irq(struct vfe_device *vfe_dev,
 	uint32_t irq_status0)
 {
-	if (irq_status0 & BIT(3))
+	if (irq_status0 & BIT(1))
 		vfe_dev->axi_data.src_info[VFE_PIX_0].accept_frame = false;
-	if (irq_status0 & BIT(0)) {
+	if (irq_status0 & BIT(0))
 		vfe_dev->axi_data.src_info[VFE_PIX_0].accept_frame = true;
-		vfe_dev->irq_sof_id++;
-	}
 }
 
 void msm_vfe47_reg_update(struct vfe_device *vfe_dev,
@@ -779,6 +962,7 @@ long msm_vfe47_reset_hardware(struct vfe_device *vfe_dev,
 	long rc = 0;
 	uint32_t reset;
 	unsigned long flags;
+	uint32_t irq_status0;
 
 	spin_lock_irqsave(&vfe_dev->reset_completion_lock, flags);
 	init_completion(&vfe_dev->reset_complete);
@@ -808,10 +992,13 @@ long msm_vfe47_reset_hardware(struct vfe_device *vfe_dev,
 
 	if (blocking_call) {
 		rc = wait_for_completion_interruptible_timeout(
-			&vfe_dev->reset_complete, msecs_to_jiffies(100));
+			&vfe_dev->reset_complete, msecs_to_jiffies(500));
 		if (rc <= 0) {
-			pr_err("%s:%d failed: reset timeout\n", __func__,
-				__LINE__);
+			irq_status0  = msm_camera_io_r(vfe_dev->vfe_base + 0x6C);
+			pr_err("%s:%d failed: reset timeout, status0 0x%x\n", __func__,
+				__LINE__, irq_status0);
+			if (irq_status0 & (1 << 31))
+				return 1;
 			vfe_dev->reset_pending = 0;
 		}
 	}
@@ -1174,6 +1361,7 @@ int msm_vfe47_start_fetch_engine_multi_pass(struct vfe_device *vfe_dev,
 		mutex_lock(&vfe_dev->buf_mgr->lock);
 		rc = vfe_dev->buf_mgr->ops->get_buf_by_index(
 			vfe_dev->buf_mgr, bufq_handle, fe_cfg->buf_idx, &buf);
+		mutex_unlock(&vfe_dev->buf_mgr->lock);
 		if (rc < 0 || !buf) {
 			pr_err("%s: No fetch buffer rc= %d buf= %pK\n",
 				__func__, rc, buf);
@@ -1634,7 +1822,7 @@ void msm_vfe47_update_camif_state(struct vfe_device *vfe_dev,
 	val = msm_camera_io_r(vfe_dev->vfe_base + 0x47C);
 	if (update_state == ENABLE_CAMIF) {
 		vfe_dev->hw_info->vfe_ops.irq_ops.config_irq(vfe_dev,
-					0x1F, 0x91,
+					0x15, 0x91,
 					MSM_ISP_IRQ_ENABLE);
 
 		if ((vfe_dev->hvx_cmd > HVX_DISABLE) &&
@@ -1655,6 +1843,8 @@ void msm_vfe47_update_camif_state(struct vfe_device *vfe_dev,
 		msm_camera_io_w(val, vfe_dev->vfe_base + 0x47C);
 		msm_camera_io_w_mb(0x4, vfe_dev->vfe_base + 0x478);
 		msm_camera_io_w_mb(0x1, vfe_dev->vfe_base + 0x478);
+		/* configure EPOCH0 for 20 lines */
+		msm_camera_io_w_mb(0x140000, vfe_dev->vfe_base + 0x4A0);
 		/* testgen GO*/
 		if (vfe_dev->axi_data.src_info[VFE_PIX_0].input_mux == TESTGEN)
 			msm_camera_io_w(1, vfe_dev->vfe_base + 0xC58);
@@ -2683,9 +2873,7 @@ int msm_vfe47_set_clk_rate(struct vfe_device *vfe_dev, long *rate)
 		prev_clk_rate <
 		vfe_dev->vfe_clk_rates[MSM_VFE_CLK_RATE_NOMINAL]
 		[vfe_dev->hw_info->vfe_clk_idx]) {
-		pr_debug("%s: clk is more than Nominal vfe %d, ipeak bit %d\n",
-			__func__, vfe_dev->pdev->id, vfe_dev->cx_ipeak_bit);
-		ret = cam_cx_ipeak_update_vote_cx_ipeak(vfe_dev->cx_ipeak_bit);
+		ret = cx_ipeak_update(vfe_dev->vfe_cx_ipeak, true);
 		if (ret) {
 			pr_err("%s: cx_ipeak_update failed %d\n",
 				__func__, ret);
@@ -2708,9 +2896,7 @@ int msm_vfe47_set_clk_rate(struct vfe_device *vfe_dev, long *rate)
 		prev_clk_rate >=
 		vfe_dev->vfe_clk_rates[MSM_VFE_CLK_RATE_NOMINAL]
 		[vfe_dev->hw_info->vfe_clk_idx]) {
-		pr_debug("%s:clk is less than Nominal vfe %d, ipeak bit %d\n",
-			__func__, vfe_dev->pdev->id, vfe_dev->cx_ipeak_bit);
-		ret = cam_cx_ipeak_unvote_cx_ipeak(vfe_dev->cx_ipeak_bit);
+		ret = cx_ipeak_update(vfe_dev->vfe_cx_ipeak, false);
 		if (ret) {
 			pr_err("%s: cx_ipeak_update failed %d\n",
 				__func__, ret);

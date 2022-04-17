@@ -47,7 +47,7 @@ static const char f_midi_longname[] = "MIDI Gadget";
  * stored in 4-bit fields. And as the interface currently only holds one
  * single endpoint, this is the maximum number of ports we can allow.
  */
-#define MAX_PORTS 16
+#define MAX_PORTS 1
 
 /*
  * This is a gadget, and the IN/OUT naming is from the host's perspective.
@@ -305,7 +305,8 @@ static int f_midi_start_ep(struct f_midi *midi,
 	int err;
 	struct usb_composite_dev *cdev = f->config->cdev;
 
-	usb_ep_disable(ep);
+	if (ep->driver_data)
+		usb_ep_disable(ep);
 
 	err = config_ep_by_speed(midi->gadget, f, ep);
 	if (err) {
@@ -343,7 +344,8 @@ static int f_midi_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	if (err)
 		return err;
 
-	usb_ep_disable(midi->out_ep);
+	if (midi->out_ep->driver_data)
+		usb_ep_disable(midi->out_ep);
 
 	err = config_ep_by_speed(midi->gadget, f, midi->out_ep);
 	if (err) {
@@ -1099,7 +1101,7 @@ static ssize_t alsa_show(struct device *dev,
 	struct usb_function_instance *fi_midi = dev_get_drvdata(dev);
 	struct f_midi *midi;
 
-	if (!fi_midi->f)
+	if (!fi_midi || !fi_midi->f)
 		dev_warn(dev, "f_midi: function not set\n");
 
 	if (fi_midi && fi_midi->f) {
@@ -1162,7 +1164,7 @@ static struct usb_function_instance *f_midi_alloc_inst(void)
 	opts->func_inst.free_func_inst = f_midi_free_inst;
 	opts->index = SNDRV_DEFAULT_IDX1;
 	opts->id = SNDRV_DEFAULT_STR1;
-	opts->buflen = 1024;
+	opts->buflen = 512;
 	opts->qlen = 32;
 	opts->in_ports = 1;
 	opts->out_ports = 1;

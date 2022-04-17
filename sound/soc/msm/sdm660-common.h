@@ -99,6 +99,7 @@ struct msm_asoc_mach_data {
 	struct device_node *pdm_gpio_p; /* used by pinctrl API */
 	struct device_node *comp_gpio_p; /* used by pinctrl API */
 	struct device_node *dmic_gpio_p; /* used by pinctrl API */
+	struct device_node *tert_mi2s_gpio_p; /* used by pinctrl API */
 	struct device_node *ext_spk_gpio_p; /* used by pinctrl API */
 	struct snd_soc_codec *codec;
 	struct sdm660_codec sdm660_codec_fn;
@@ -116,6 +117,12 @@ struct msm_asoc_mach_data {
 	struct delayed_work disable_int_mclk0_work;
 	struct afe_clk_set digital_cdc_core_clk;
 	struct msm_snd_interrupt msm_snd_intr_lpi;
+#ifdef CONFIG_SAMSUNG_JACK
+	uint32_t amux_channel;
+	uint32_t moisture_channel;
+#endif /* CONFIG_SAMSUNG_JACK */
+	int dmic_ldo_en;
+	int fm_lna_en;
 };
 
 int msm_common_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,

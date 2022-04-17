@@ -273,7 +273,7 @@ static int msm_dig_cdc_codec_config_compander(struct snd_soc_codec *codec,
 		dig_cdc->set_compander_mode(dig_cdc->handle, 0x08);
 		/* Enable Compander Clock */
 		snd_soc_update_bits(codec,
-			MSM89XX_CDC_CORE_COMP0_B2_CTL, 0x0F, 0x09);
+			MSM89XX_CDC_CORE_COMP0_B2_CTL, 0x0F, 0x0D);
 		snd_soc_update_bits(codec,
 			MSM89XX_CDC_CORE_CLK_RX_B2_CTL, 0x01, 0x01);
 		if (dig_cdc->comp_enabled[MSM89XX_RX1]) {
@@ -291,11 +291,11 @@ static int msm_dig_cdc_codec_config_compander(struct snd_soc_codec *codec,
 		snd_soc_update_bits(codec,
 			MSM89XX_CDC_CORE_COMP0_B2_CTL, 0xF0, 0x50);
 		/* add sleep for compander to settle */
-		usleep_range(1000, 1100);
+		usleep_range(5000, 5100);
 		snd_soc_update_bits(codec,
 			MSM89XX_CDC_CORE_COMP0_B3_CTL, 0xFF, 0x28);
 		snd_soc_update_bits(codec,
-			MSM89XX_CDC_CORE_COMP0_B2_CTL, 0xF0, 0xB0);
+			MSM89XX_CDC_CORE_COMP0_B2_CTL, 0xF0, 0xF0);
 
 		/* Enable Compander GPIO */
 		if (dig_cdc->codec_hph_comp_gpio)
@@ -2103,6 +2103,7 @@ static int msm_dig_cdc_probe(struct platform_device *pdev)
 	u32 dig_cdc_addr;
 	struct msm_dig_priv *msm_dig_cdc;
 	struct dig_ctrl_platform_data *pdata;
+	int delay_time;
 
 	msm_dig_cdc = devm_kzalloc(&pdev->dev, sizeof(struct msm_dig_priv),
 			      GFP_KERNEL);
@@ -2115,6 +2116,11 @@ static int msm_dig_cdc_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto rtn;
 	}
+
+	/*update delay mute time from dtsi*/
+	if (!of_property_read_u32(pdev->dev.of_node,
+				"qcom,tx-unmute-delay-ms", &delay_time));
+		tx_unmute_delay = delay_time;
 
 	ret = of_property_read_u32(pdev->dev.of_node, "reg",
 					&dig_cdc_addr);

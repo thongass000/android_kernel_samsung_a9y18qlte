@@ -139,6 +139,10 @@ enum {
 	UPIU_QUERY_FUNC_STANDARD_WRITE_REQUEST          = 0x81,
 };
 
+enum {
+	UPIU_QUERY_FUNC_VENDOR_TOSHIBA_FATALMODE        = 0xC2,
+};
+
 enum desc_header_offset {
 	QUERY_DESC_LENGTH_OFFSET	= 0x00,
 	QUERY_DESC_DESC_TYPE_OFFSET	= 0x01,
@@ -211,13 +215,13 @@ enum device_desc_param {
 	DEVICE_DESC_PARAM_FRQ_RTC		= 0x1D,
 };
 
-/* Health descriptor parameters offsets in bytes*/
-enum health_desc_param {
-	HEALTH_DESC_PARAM_LEN			= 0x0,
-	HEALTH_DESC_PARAM_TYPE			= 0x1,
-	HEALTH_DESC_PARAM_EOL_INFO		= 0x2,
-	HEALTH_DESC_PARAM_LIFE_TIME_EST_A	= 0x3,
-	HEALTH_DESC_PARAM_LIFE_TIME_EST_B	= 0x4,
+enum health_device_desc_param {
+	HEALTH_DEVICE_DESC_PARAM_LEN		= 0x0,
+	HEALTH_DEVICE_DESC_PARAM_IDN		= 0x1,
+	HEALTH_DEVICE_DESC_PARAM_INFO		= 0x2,
+	HEALTH_DEVICE_DESC_PARAM_LIFETIMEA	= 0x3,
+	HEALTH_DEVICE_DESC_PARAM_LIFETIMEB	= 0x4,
+	HEALTH_DEVICE_DESC_PARAM_RESERVED	= 0x5,
 };
 
 /*
@@ -307,6 +311,7 @@ enum {
 	MASK_QUERY_DATA_SEG_LEN         = 0xFFFF,
 	MASK_RSP_UPIU_DATA_SEG_LEN	= 0xFFFF,
 	MASK_RSP_EXCEPTION_EVENT        = 0x10000,
+	MASK_TM_SERVICE_RESP		= 0xFF,
 };
 
 /* Task management service response */

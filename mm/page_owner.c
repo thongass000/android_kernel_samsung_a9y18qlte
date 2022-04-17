@@ -93,6 +93,8 @@ struct page_ext_operations page_owner_ops = {
 	.init = init_page_owner,
 };
 
+static noinline depot_stack_handle_t save_stack(gfp_t flags);
+
 void __reset_page_owner(struct page *page, unsigned int order)
 {
 	int i;
@@ -102,6 +104,15 @@ void __reset_page_owner(struct page *page, unsigned int order)
 		page_ext = lookup_page_ext(page + i);
 		if (unlikely(!page_ext))
 			continue;
+#ifdef CONFIG_PAGE_OWNER_EXTRA
+		page_ext->free_ts = sched_clock();
+		page_ext->free_task = current;
+		if (in_atomic() || in_interrupt())
+			page_ext->free_handle = 0;
+		else
+			page_ext->free_handle = save_stack(page_ext->gfp_mask);
+		page_ext->free_cpu = smp_processor_id();
+#endif /* CONFIG_PAGE_OWNER_EXTRA */
 		__clear_bit(PAGE_EXT_OWNER, &page_ext->flags);
 	}
 }
@@ -167,6 +178,11 @@ noinline void __set_page_owner(struct page *page, unsigned int order,
 	page_ext->order = order;
 	page_ext->gfp_mask = gfp_mask;
 	page_ext->last_migrate_reason = -1;
+#ifdef CONFIG_PAGE_OWNER_EXTRA
+	page_ext->alloc_ts = sched_clock();
+	page_ext->alloc_task = current;
+	page_ext->alloc_cpu = smp_processor_id();
+#endif
 
 	__set_bit(PAGE_EXT_OWNER, &page_ext->flags);
 }

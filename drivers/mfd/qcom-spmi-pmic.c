@@ -58,6 +58,20 @@ static const struct of_device_id pmic_spmi_id_table[] = {
 	{ }
 };
 
+#ifdef CONFIG_SEC_PM
+#define MAX_SPMI_DEVICES	4
+static struct regmap* 		spmi_regmap[MAX_SPMI_DEVICES];
+static int spmi_devices;
+
+int qpnp_get_dump(int sid, unsigned int reg, void *buf, size_t count)
+{
+	if (sid >= spmi_devices)
+		return -ENODEV;
+	return regmap_bulk_read(spmi_regmap[sid], reg, buf, count);
+}
+EXPORT_SYMBOL(qpnp_get_dump);
+#endif
+
 static void pmic_spmi_show_revid(struct regmap *map, struct device *dev)
 {
 	unsigned int rev2, minor, major, type, subtype;
@@ -129,6 +143,10 @@ static int pmic_spmi_probe(struct spmi_device *sdev)
 
 	pmic_spmi_show_revid(regmap, &sdev->dev);
 
+#ifdef CONFIG_SEC_PM
+	if (spmi_devices < MAX_SPMI_DEVICES)
+		spmi_regmap[spmi_devices++] = regmap;
+#endif
 	return of_platform_populate(root, NULL, NULL, &sdev->dev);
 }
 

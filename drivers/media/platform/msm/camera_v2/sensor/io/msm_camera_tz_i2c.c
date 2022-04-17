@@ -56,6 +56,9 @@ struct msm_camera_tz_i2c_cci_generic_req_t {
 struct msm_camera_tz_i2c_power_up_req_t {
 	enum msm_camera_tz_cmd_id_t cmd_id;
 	int32_t                     sensor_id;
+#if 1 // SS iris
+	uint32_t                    model;
+#endif
 };
 
 #define msm_camera_tz_i2c_power_up_rsp_t msm_camera_tz_generic_rsp_t
@@ -122,6 +125,10 @@ struct msm_camera_tz_i2c_sensor_info_t {
 
 static struct msm_camera_tz_i2c_sensor_info_t sensor_info[MAX_CAMERAS];
 
+#if 1 // SS iris
+#define ADDR_STOP_STREAM 0x2
+#endif
+
 static int32_t msm_camera_tz_i2c_is_sensor_secure(
 	struct msm_camera_i2c_client *client)
 {
@@ -181,7 +188,7 @@ static int32_t msm_camera_tz_i2c_ta_power_up(
 	if (!rc)  {
 		cmd->cmd_id = MSM_CAMERA_TZ_CMD_POWER_UP;
 		cmd->sensor_id = sensor_id;
-
+		cmd->model = 3;
 		rc = qseecom_send_command(ta_qseecom_handle,
 			(void *)cmd, cmd_len, (void *)rsp, rsp_len);
 
@@ -407,6 +414,12 @@ static int32_t msm_camera_tz_i2c_ta_cci_write(
 				rc);
 			return rc;
 		}
+#if 1 // SS iris
+		if (addr == ADDR_STOP_STREAM) {
+			CDBG("delay for stop_stream\n");
+			msleep(50);
+		}
+#endif
 		rc = rsp->rc;
 	}
 	CDBG("Done: rc=%d, SN=%d, MS=%d, SID=%d, CID=%d, ", rc,

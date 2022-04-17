@@ -26,6 +26,10 @@
 #include "../core.h"
 #include "../pinctrl-utils.h"
 
+#ifdef CONFIG_SEC_PM_DEBUG
+#include <linux/sec-pinmux.h>
+#endif
+
 #define LPI_ADDRESS_SIZE			0xC000
 
 #define LPI_GPIO_REG_VAL_CTL			0x00
@@ -405,24 +409,59 @@ static void lpi_gpio_set(struct gpio_chip *chip, unsigned pin, int value)
 	lpi_config_set(state->ctrl, pin, &config, 1);
 }
 
+#ifdef CONFIG_SEC_PM_DEBUG
+void lpi_gp_get_cfg(struct gpio_chip *chip, uint pin_no, struct gpiomux_setting *val)
+{
+	struct pinctrl_dev *pctldev = to_gpio_state(chip)->ctrl;
+	struct lpi_gpio_pad *pad;
+	int in_out;
+	u32 ctl_reg;
+
+	pad = pctldev->desc->pins[pin_no].drv_data;
+
+	ctl_reg = lpi_gpio_read(pad, LPI_GPIO_REG_DIR_CTL);
+	in_out = ctl_reg & LPI_GPIO_REG_DIR_MASK;
+	
+	ctl_reg = lpi_gpio_read(pad, LPI_GPIO_REG_VAL_CTL);
+	val->func = (ctl_reg & LPI_GPIO_REG_FUNCTION_MASK) >>
+		LPI_GPIO_REG_FUNCTION_SHIFT;
+	val->drv = (ctl_reg & LPI_GPIO_REG_OUT_STRENGTH_MASK) >>
+		 LPI_GPIO_REG_OUT_STRENGTH_SHIFT;
+	val->pull = (ctl_reg & LPI_GPIO_REG_PULL_MASK) >> LPI_GPIO_REG_PULL_SHIFT;
+	val->dir = (ctl_reg & LPI_GPIO_REG_OE_MASK) >> LPI_GPIO_REG_OE_SHIFT;
+	if ((val->func == GPIOMUX_FUNC_GPIO) && (val->dir))
+		val->dir = (in_out & BIT_MASK(GPIO_OUT_BIT)) ?
+		GPIOMUX_OUT_HIGH : GPIOMUX_OUT_LOW;
+}
+
+int lpi_gp_get_value(struct gpio_chip *chip, uint pin_no, int in_out_type)
+{
+	struct pinctrl_dev *pctldev = to_gpio_state(chip)->ctrl;
+	struct lpi_gpio_pad *pad;
+	int in_out;
+	u32 ctl_reg;
+
+	pad = pctldev->desc->pins[pin_no].drv_data;
+
+	ctl_reg = lpi_gpio_read(pad, LPI_GPIO_REG_DIR_CTL);
+	in_out = ctl_reg & LPI_GPIO_REG_DIR_MASK;
+
+	if(in_out_type == GPIOMUX_IN)
+		return (in_out & BIT(GPIO_IN_BIT)) >> GPIO_IN_BIT;
+	return (in_out & BIT(GPIO_OUT_BIT)) >> GPIO_OUT_BIT;
+}
+#endif
+
 static int lpi_notifier_service_cb(struct notifier_block *this,
 				   unsigned long opcode, void *ptr)
 {
-	static bool initial_boot = true;
-
 	pr_debug("%s: Service opcode 0x%lx\n", __func__, opcode);
 
 	switch (opcode) {
 	case AUDIO_NOTIFIER_SERVICE_DOWN:
-		if (initial_boot) {
-			initial_boot = false;
-			break;
-		}
 		lpi_dev_up = false;
 		break;
 	case AUDIO_NOTIFIER_SERVICE_UP:
-		if (initial_boot)
-			initial_boot = false;
 		lpi_dev_up = true;
 		break;
 	default:

@@ -117,6 +117,7 @@
 		.intr_detection_bit = -1,		\
 		.intr_detection_width = -1,		\
 	}
+
 static const struct pinctrl_pin_desc sdm660_pins[] = {
 	PINCTRL_PIN(0, "GPIO_0"),
 	PINCTRL_PIN(1, "GPIO_1"),
@@ -593,6 +594,7 @@ enum sdm660_functions {
 	msm_mux_qlink_enable,
 	msm_mux_prng_rosc,
 	msm_mux_LCD_PWR,
+	msm_mux_gp_clk0,
 	msm_mux_NA,
 };
 
@@ -823,6 +825,9 @@ static const char * const phase_flag17_groups[] = {
 	"gpio24",
 };
 static const char * const vsense_clkout_groups[] = {
+	"gpio24",
+};
+static const char * const gp_clk0_groups[] = {
 	"gpio24",
 };
 static const char * const sndwire_data_groups[] = {
@@ -1511,6 +1516,7 @@ static const struct msm_function sdm660_functions[] = {
 	FUNCTION(qlink_enable),
 	FUNCTION(prng_rosc),
 	FUNCTION(LCD_PWR),
+	FUNCTION(gp_clk0),
 };
 
 static const struct msm_pingroup sdm660_groups[] = {
@@ -1562,7 +1568,7 @@ static const struct msm_pingroup sdm660_groups[] = {
 		 phase_flag12, vsense_data1, NA, NA, NA),
 	PINGROUP(23, CENTER, blsp_spi6, NA, blsp_i2c6, NA,
 		 phase_flag13, vsense_mode, NA, NA, NA),
-	PINGROUP(24, NORTH, blsp_spi7, blsp_uart6_a, sec_mi2s, sndwire_clk, NA,
+	PINGROUP(24, NORTH, blsp_spi7, blsp_uart6_a, sec_mi2s, sndwire_clk, gp_clk0,
 		 NA, phase_flag17, vsense_clkout, NA),
 	PINGROUP(25, NORTH, blsp_spi7, blsp_uart6_a, sec_mi2s, sndwire_data, NA,
 		 NA, phase_flag18, NA, NA),

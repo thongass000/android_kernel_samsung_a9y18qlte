@@ -164,6 +164,7 @@ int diag_md_write(int id, unsigned char *buf, int len, int ctx)
 		return -EIO;
 	}
 	pid = session_info->pid;
+	mutex_unlock(&driver->md_session_lock);
 
 	ch = &diag_md[id];
 	if (!ch || !ch->md_info_inited) {

@@ -86,6 +86,15 @@
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #endif
+
+#ifdef CONFIG_SEC_DEBUG
+#include <linux/sec_debug.h>
+#endif
+
+#ifdef CONFIG_SEC_DEBUG_SUMMARY
+#include <linux/sec_debug_summary.h>
+#endif
+
 #ifdef CONFIG_MSM_APP_SETTINGS
 #include <asm/app_api.h>
 #endif
@@ -102,6 +111,15 @@ ATOMIC_NOTIFIER_HEAD(load_alert_notifier_head);
 
 DEFINE_MUTEX(sched_domains_mutex);
 DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
+
+#ifdef CONFIG_SEC_DEBUG_SUMMARY
+void summary_set_lpm_info_runqueues(struct sec_debug_summary_data_apss *apss)
+{
+	pr_info("%s : 0x%llx\n", __func__, virt_to_phys((void *)&runqueues));
+	apss->aplpm.p_runqueues = virt_to_phys((void *)&runqueues);
+	apss->aplpm.cstate_offset = offsetof(struct rq, cstate);
+}
+#endif
 
 static void update_rq_clock_task(struct rq *rq, s64 delta);
 
@@ -3578,6 +3596,7 @@ static void __sched notrace __schedule(bool preempt)
 		set_task_last_switch_out(prev, wallclock);
 
 		trace_sched_switch(preempt, prev, next);
+		sec_debug_task_sched_log(cpu, preempt, next, prev);
 		rq = context_switch(rq, prev, next); /* unlocks the rq */
 		cpu = cpu_of(rq);
 	} else {

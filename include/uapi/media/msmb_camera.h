@@ -53,7 +53,8 @@
 #define MSM_CAMERA_SUBDEV_EXT          19
 #define MSM_CAMERA_SUBDEV_TOF          20
 #define MSM_CAMERA_SUBDEV_LASER_LED    21
-#define MSM_MAX_CAMERA_SENSORS  6
+#define MSM_CAMERA_SUBDEV_OTP          22
+#define MSM_MAX_CAMERA_SENSORS  5
 
 /* The below macro is defined to put an upper limit on maximum
  * number of buffer requested per stream. In case of extremely
@@ -61,7 +62,7 @@
  * we return error to avoid integer overflow. Group processing
  * can have max of 9 groups of 8 bufs each. This value may be
  * configured in future*/
-#define MSM_CAMERA_MAX_STREAM_BUF 72
+#define MSM_CAMERA_MAX_STREAM_BUF 128
 
 /* Max batch size of processing */
 #define MSM_CAMERA_MAX_USER_BUFF_CNT 16

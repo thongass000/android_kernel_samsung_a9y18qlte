@@ -71,11 +71,8 @@ config ARM64
 	select HAVE_DMA_API_DEBUG
 	select HAVE_DMA_ATTRS
 	select HAVE_DMA_CONTIGUOUS
-	select HAVE_DYNAMIC_FTRACE
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
-	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_FUNCTION_TRACER
-	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_HW_BREAKPOINT if PERF_EVENTS
 	select HAVE_IRQ_TIME_ACCOUNTING
@@ -1205,6 +1202,135 @@ config KEYS_COMPAT
 	depends on COMPAT && KEYS
 
 endmenu
+
+config SEC_ASTARQLTE_PROJECT
+	depends on ARCH_SDM660
+		default n
+		bool "Samsung A-Star Project"
+		help
+		  Support for Samsung C9NLTE Project
+
+config MACH_ASTARQLTE_CHN
+	depends on SEC_ASTARQLTE_PROJECT
+		default n
+		bool "Samsung A-Star CHN"
+		help
+		  Support for Samsung A-Star CHN device.
+
+config MACH_ASTARQLTE_SKT
+	depends on SEC_ASTARQLTE_PROJECT
+		default n
+		bool "Samsung A-Star KOR SKT"
+		help
+		  Support for Samsung A-Star KOR SKT device.
+
+config MACH_ASTARQLTE_SEA
+	depends on SEC_ASTARQLTE_PROJECT
+		default n
+		bool "Samsung A-Star SEA"
+		help
+		  Support for Samsung A-Star SEA device.
+
+config MACH_ASTARQLTE_CHNHK
+	depends on SEC_ASTARQLTE_PROJECT
+		default n
+		bool "Samsung A-Star CHNHK"
+		help
+		  Support for Samsung A-Star CHNHK device.
+
+config MACH_ASTARQLTE_CHNCMCC
+	depends on SEC_ASTARQLTE_PROJECT
+		default n
+		bool "Samsung A-Star CHNCMCC"
+		help
+		  Support for Samsung A-Star CHNCMCC device.
+
+config MACH_ASTARQLTE_CHNLDU
+	depends on SEC_ASTARQLTE_PROJECT
+		default n
+		bool "Samsung A-Star CHNLDU"
+		help
+		  Support for Samsung A-Star CHNLDU device.
+
+config MACH_ASTARQLTE_CHNTW
+	depends on SEC_ASTARQLTE_PROJECT
+		default n
+		bool "Samsung A-Star CHNTW"
+		help
+		  Support for Samsung A-Star CHNTW device.
+
+config MACH_A9Y18QLTE_SWA
+	depends on SEC_A9Y18QLTE_PROJECT
+		default n
+		bool "Samsung A9Y18 SWA"
+		help
+		  Support for Samsung A9Y18 SWA device.
+
+config MACH_A9Y18QLTE_CIS
+	depends on SEC_A9Y18QLTE_PROJECT
+		default n
+		bool "Samsung A9Y18 CIS"
+		help
+		  Support for Samsung A9Y18 CIS device.
+
+config MACH_A9Y18QLTE_CHN
+	depends on SEC_A9Y18QLTE_PROJECT
+		default n
+		bool "Samsung A9Y18 CHN"
+		help
+		  Support for Samsung A9Y18 CHN device.
+
+config MACH_A9Y18QLTE_CHNLDU
+	depends on SEC_A9Y18QLTE_PROJECT
+		default n
+		bool "Samsung A9Y18 CHN LDU"
+		help
+		  Support for Samsung A9Y18 CHN LDU device.
+
+config MACH_A9Y18QLTE_EUR
+	depends on SEC_A9Y18QLTE_PROJECT
+		default n
+		bool "Samsung A9Y18 EUR"
+		help
+		  Support for Samsung A9Y18 EUR device.
+
+config MACH_A9Y18QLTE_EURLDU
+	depends on SEC_A9Y18QLTE_PROJECT
+		default n
+		bool "Samsung A9Y18 EUR LDU"
+		help
+		  Support for Samsung A9Y18 EUR LDU device.
+
+config MACH_A9Y18QLTE_KOR
+	depends on SEC_A9Y18QLTE_PROJECT
+		default n
+		bool "Samsung A9Y18 KOR"
+		help
+		  Support for Samsung A9Y18 KOR device.
+
+config SEC_DREAMLITEQLTE_PROJECT
+	depends on ARCH_SDM660
+		default n
+		bool "Samsung DREAMLITE Project"
+		help
+		  Support for Samsung A-Star Project
+
+config SEC_A9Y18QLTE_PROJECT
+       depends on ARCH_SDM660
+               default n
+               bool "Samsung A9Y18 Triple Project"
+               help
+                 Support for Samsung A9Y18 Triple Project
+
+config RELOCATABLE_KERNEL 
+	bool "set kernel to relocatable in both virtual and physical address"
+	default n
+	help 	
+	  This configuare will allow you to config the kernel into position independent kernel, with '--PIE' insert into LD script.
+
+config TIMA
+	bool "Enable TIMA(Trustzone based Integrity Measurement Archtecture feature"
+	default n
 
 menu "Power management options"
 

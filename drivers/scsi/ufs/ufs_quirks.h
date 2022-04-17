@@ -17,7 +17,7 @@
 /* return true if s1 is a prefix of s2 */
 #define STR_PRFX_EQUAL(s1, s2) !strncmp(s1, s2, strlen(s1))
 
-#define UFS_ANY_VENDOR -1
+#define UFS_ANY_VENDOR 0xffff
 #define UFS_ANY_MODEL  "ANY_MODEL"
 
 #define MAX_MODEL_LEN 16
@@ -30,6 +30,8 @@
 #define UFS_MODEL_TOSHIBA_32GB "THGLF2G8D4KBADR"
 #define UFS_MODEL_TOSHIBA_64GB "THGLF2G9D8KBADG"
 
+#define UFS_UN_20_DIGITS 20
+#define UFS_UN_MAX_DIGITS 21 //current max digit + 1
 /**
  * ufs_card_info - ufs device details
  * @wmanufacturerid: card details
@@ -37,6 +39,7 @@
  */
 struct ufs_card_info {
 	u16 wmanufacturerid;
+	u8 lifetime;
 	char *model;
 };
 
@@ -146,6 +149,20 @@ struct ufs_card_fix {
  * device would apply this 2 steps gear switch workaround.
  */
 #define UFS_DEVICE_QUIRK_HS_G1_TO_HS_G3_SWITCH (1 << 8)
+
+/*
+ * Some UFS devices support the FATAL MODE
+ * to gether the debug info.
+ */
+#define UFS_DEVICE_QUIRK_SUPPORT_QUERY_FATAL_MODE	(1 << 9)
+
+/*
+ * Some UFS devices raise the urgent bkops exception event,
+ * even when BKOPS status doesn't indicate performance impacted
+ * or critical. Once urgent_bkops_lvl sets no op or non critical,
+ * host enable bkops whenever the host resume regardless of urgent bkops status.
+ */
+#define UFS_DEVICE_QUIRK_URGENT_BKOPS_EE (1 << 10)
 
 struct ufs_hba;
 void ufs_advertise_fixup_device(struct ufs_hba *hba);

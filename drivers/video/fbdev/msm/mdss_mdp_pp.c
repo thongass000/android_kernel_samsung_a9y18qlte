@@ -1667,6 +1667,7 @@ int mdss_mdp_scaler_lut_cfg(struct mdp_scale_data_v2 *scaler,
 				}
 		}
 	}
+	
 
 	mutex_unlock(&mdata->scaler_off->scaler_lock);
 

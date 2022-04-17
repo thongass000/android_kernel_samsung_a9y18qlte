@@ -768,8 +768,7 @@ config AUDIO_EXT_CLK
 	default y if SND_SOC_WCD9335=y || SND_SOC_WCD9330=y || SND_SOC_SDM660_CDC=y
 
 config SND_SOC_WCD_MBHC
-	tristate
-	default y if (SND_SOC_MSM8909_WCD=y || SND_SOC_SDM660_CDC=y || SND_SOC_WCD9335=y) && SND_SOC_MDMCALIFORNIUM!=y
+	tristate "MBHC function"
 
 config SND_SOC_WCD_DSP_MGR
 	tristate
@@ -961,6 +960,9 @@ config SND_SOC_WM9712
 config SND_SOC_WM9713
 	tristate
 
+# DBMDx
+source "sound/soc/codecs/dbmdx/Kconfig"
+
 # Amp
 config SND_SOC_LM4857
 	tristate
@@ -994,6 +996,12 @@ config SND_SOC_MSM_HDMI_CODEC_RX
 	HDMI audio drivers should be built only if the platform
         supports hdmi panel.
 
+config SND_SOC_TFA9872
+	tristate "Support TFA9872"
+	depends on I2C
+	help
+	TFA9872 driver
+        
 source "sound/soc/codecs/sdm660_cdc/Kconfig"
 source "sound/soc/codecs/msm_sdw/Kconfig"
 

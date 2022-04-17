@@ -55,6 +55,12 @@ config QPNP_HAPTIC
 	  module provides haptic feedback for user actions such as a long press
 	  on the touch screen.  It uses the Android timed-output framework.
 
+config QPNP_HAPTIC_USE_INTENSITY
+	tristate "QPNP Haptic use INTENSITY"
+	depends on QPNP_HAPTIC
+	help
+	  This option enables QPNP haptic to use INTENSITY.
+
 config QPNP_PBS
 	tristate "PBS trigger support for QPNP PMIC"
 	depends on SPMI
@@ -1011,5 +1017,54 @@ config MFSE_QMI
 	depends on MSM_QMI_INTERFACE
 	help
 	 This option enables the QMI client driver for MFSE service.
+
+config TIMA
+       bool "Enable TIMA feature"
+       default n
+       help
+         Enables TIMA
+
+config TIMA_LKMAUTH
+       bool "Enable LKM authentication TIMA feature"
+       default n
+       depends on MODULES
+       help
+         TIMA authenticates loaded kernel modules. Disable it if you don't
+         want TIMA enabled.
+
+config TIMA_LKMAUTH_CODE_PROT
+       bool "Support kernel Module"
+       depends on MODULES
+       default n
+       help
+         When enabled, this feature will mark all Executable sections in an
+         LKM as RO
+
+config TIMA_TEST_INFRA
+       tristate "Testing infrastructure for TIMA"
+       default n
+       help
+         Kernel bits of the TIMA test infrastructure
+
+config TIMA_UEVENT
+       bool "Uevent message propagation for TIMA"
+       depends on TIMA
+       default n
+       help
+         Uevent messages for TIMA PKM/LKM
+
+config TIMA_LOG
+       bool "Log dumping support for TIMA"
+       depends on TIMA
+       default n
+       help
+         TIMA Log dumping support
+
+config SENSORS_SSC
+	bool "Enable Sensors Driver Support for SSC"
+	help
+	  Add support for sensors SSC driver.
+	  This driver is used for exercising sensors use case,
+	  time syncing with SLPI clock.
 
 source "drivers/soc/qcom/memshare/Kconfig"

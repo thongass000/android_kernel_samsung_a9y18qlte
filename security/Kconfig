@@ -189,6 +189,10 @@ source security/apparmor/Kconfig
 source security/yama/Kconfig
 
 source security/integrity/Kconfig
+source security/samsung/five/Kconfig
+source security/samsung/defex_lsm/Kconfig
+source security/samsung/dsms/Kconfig
+source security/proca/Kconfig
 
 choice
 	prompt "Default security module"

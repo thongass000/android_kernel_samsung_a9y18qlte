@@ -544,6 +544,7 @@ static int msm_csid_init(struct csid_device *csid_dev, uint32_t *csid_version)
 	pr_info("%s: CSID_VERSION = 0x%x\n", __func__,
 		csid_dev->ctrl_reg->csid_reg.csid_version);
 	/* power up */
+	pr_info("[CAM_DBG][%s] E\n", __func__);
 	rc = msm_camera_config_vreg(&csid_dev->pdev->dev, csid_dev->csid_vreg,
 		csid_dev->regulator_count, NULL, 0,
 		&csid_dev->csid_reg_ptr[0], 1);
@@ -575,6 +576,7 @@ static int msm_csid_init(struct csid_device *csid_dev, uint32_t *csid_version)
 		pr_err("%s: regulator enable failed\n", __func__);
 		goto csid_vreg_enable_failed;
 	}
+
 	rc = msm_camera_clk_enable(&csid_dev->pdev->dev,
 		csid_dev->csid_clk_info, csid_dev->csid_clk,
 		csid_dev->num_clk, true);
@@ -583,6 +585,8 @@ static int msm_csid_init(struct csid_device *csid_dev, uint32_t *csid_version)
 			 __func__, __LINE__);
 		goto clk_enable_failed;
 	}
+	pr_info("[CAM_DBG][%s] X\n", __func__);
+
 	CDBG("%s:%d called\n", __func__, __LINE__);
 	csid_dev->hw_version =
 		msm_camera_io_r(csid_dev->base +

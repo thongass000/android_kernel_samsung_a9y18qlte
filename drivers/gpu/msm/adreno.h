@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2008-2018,2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -236,6 +236,7 @@ enum adreno_preempt_states {
  * @work: A work struct for the preemption worker (for 5XX)
  * @token_submit: Indicates if a preempt token has been submitted in
  * current ringbuffer (for 4XX)
+ * @starved: A bitmask of ringbuffers that are starved for attention
  */
 struct adreno_preemption {
 	atomic_t state;
@@ -243,6 +244,7 @@ struct adreno_preemption {
 	struct timer_list timer;
 	struct work_struct work;
 	bool token_submit;
+	unsigned long starved;
 };
 
 
@@ -941,6 +943,8 @@ int adreno_efuse_map(struct adreno_device *adreno_dev);
 int adreno_efuse_read_u32(struct adreno_device *adreno_dev, unsigned int offset,
 		unsigned int *val);
 void adreno_efuse_unmap(struct adreno_device *adreno_dev);
+
+u32 adreno_get_ucode_version(const u32 *data);
 
 #define ADRENO_TARGET(_name, _id) \
 static inline int adreno_is_##_name(struct adreno_device *adreno_dev) \

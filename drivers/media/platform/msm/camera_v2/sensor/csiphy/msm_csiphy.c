@@ -1575,6 +1575,21 @@ static int32_t msm_csiphy_get_subdev_id(struct csiphy_device *csiphy_dev,
 	return 0;
 }
 
+static void csiphy_reg_dump(struct csiphy_device *csiphy_dev) 
+{ 
+	int i; 
+	uint32_t value; 
+	void __iomem *csiphybase; 
+ 
+	csiphybase = csiphy_dev->base; 
+	pr_err("csiphy_reg_dump"); 
+ 
+	for (i=0; i<1024; i++) { 
+		value = msm_camera_io_r(csiphybase+ i*4); 
+		pr_err("CSIPHY DUMP: reg offset: 0x%x, data = 0x%x \n", i*4, value); 
+	} 
+} 
+
 static long msm_csiphy_subdev_ioctl(struct v4l2_subdev *sd,
 			unsigned int cmd, void *arg)
 {
@@ -1597,6 +1612,7 @@ static long msm_csiphy_subdev_ioctl(struct v4l2_subdev *sd,
 		rc = msm_csiphy_release(csiphy_dev, arg);
 		break;
 	case MSM_SD_NOTIFY_FREEZE:
+		csiphy_reg_dump(csiphy_dev); 
 		if (!csiphy_dev || !csiphy_dev->ctrl_reg ||
 				!csiphy_dev->ref_count)
 			break;

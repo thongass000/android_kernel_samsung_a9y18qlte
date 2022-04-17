@@ -1674,7 +1674,7 @@ static int msm_compr_playback_open(struct snd_compr_stream *cstream)
 	populate_codec_list(prtd);
 	prtd->audio_client = q6asm_audio_client_alloc(
 				(app_cb)compr_event_handler, prtd);
-	if (!prtd->audio_client) {
+	if (prtd->audio_client == NULL) {
 		pr_err("%s: Could not allocate memory for client\n", __func__);
 		ret = -ENOMEM;
 		goto ac_err;
@@ -1682,6 +1682,7 @@ static int msm_compr_playback_open(struct snd_compr_stream *cstream)
 	pr_debug("%s: session ID %d\n", __func__, prtd->audio_client->session);
 	prtd->audio_client->perf_mode = false;
 	prtd->session_id = prtd->audio_client->session;
+	pdata->is_in_use[rtd->dai_link->be_id] = true;
 	msm_adsp_init_mixer_ctl_pp_event_queue(rtd);
 	if (pdata->ion_fd[rtd->dai_link->be_id] > 0) {
 		ret = msm_compr_map_ion_fd(prtd,
@@ -1695,14 +1696,20 @@ static int msm_compr_playback_open(struct snd_compr_stream *cstream)
 map_err:
 	q6asm_audio_client_free(prtd->audio_client);
 ac_err:
+	kfree(pdata->audio_effects[rtd->dai_link->be_id]);
+	pdata->audio_effects[rtd->dai_link->be_id] = NULL;
 	kfree(pdata->dec_params[rtd->dai_link->be_id]);
+	pdata->cstream[rtd->dai_link->be_id] = NULL;
+	kfree(prtd);
+	runtime->private_data = NULL;
 	pdata->dec_params[rtd->dai_link->be_id] = NULL;
 param_err:
 	kfree(pdata->audio_effects[rtd->dai_link->be_id]);
 	pdata->audio_effects[rtd->dai_link->be_id] = NULL;
+	pdata->cstream[rtd->dai_link->be_id] = NULL;
+	kfree(prtd);
 effect_err:
 	pdata->cstream[rtd->dai_link->be_id] = NULL;
-	runtime->private_data = NULL;
 	kfree(prtd);
 	return ret;
 }
@@ -1869,15 +1876,16 @@ static int msm_compr_playback_free(struct snd_compr_stream *cstream)
 
 	q6asm_audio_client_free(ac);
 	msm_adsp_clean_mixer_ctl_pp_event_queue(soc_prtd);
-	if (pdata->audio_effects[soc_prtd->dai_link->be_id] != NULL) {
-	kfree(pdata->audio_effects[soc_prtd->dai_link->be_id]);
-	pdata->audio_effects[soc_prtd->dai_link->be_id] = NULL;
-	}
-	if (pdata->dec_params[soc_prtd->dai_link->be_id] != NULL) {
-	kfree(pdata->dec_params[soc_prtd->dai_link->be_id]);
-	pdata->dec_params[soc_prtd->dai_link->be_id] = NULL;
-	}
-	pdata->is_in_use[soc_prtd->dai_link->be_id] = false;
+    if (pdata->audio_effects[soc_prtd->dai_link->be_id] != NULL) {
+       kfree(pdata->audio_effects[soc_prtd->dai_link->be_id]);
+       pdata->audio_effects[soc_prtd->dai_link->be_id] = NULL;
+    }
+    if (pdata->dec_params[soc_prtd->dai_link->be_id] != NULL) {
+       kfree(pdata->dec_params[soc_prtd->dai_link->be_id]);
+       pdata->dec_params[soc_prtd->dai_link->be_id] = NULL;
+    }
+    pdata->is_in_use[soc_prtd->dai_link->be_id] = false;	
+
 	kfree(prtd);
 	runtime->private_data = NULL;
 
@@ -3788,8 +3796,9 @@ static int msm_compr_adsp_stream_cmd_put(struct snd_kcontrol *kcontrol,
 		goto done;
 	}
 
+
 	if (event_data->payload_len > sizeof(ucontrol->value.bytes.data)
-			 - sizeof(struct msm_adsp_event_data)) {
+					- sizeof(struct msm_adsp_event_data)) {
 		pr_err("%s param length=%d  exceeds limit",
 			__func__, event_data->payload_len);
 		ret = -EINVAL;

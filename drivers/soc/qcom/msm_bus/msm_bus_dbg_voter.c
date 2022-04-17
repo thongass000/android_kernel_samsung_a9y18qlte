@@ -134,7 +134,7 @@ static ssize_t bus_floor_vote_store_api(struct device *dev,
 	int ret = 0;
 	char name[10];
 	u64 vote_khz = 0;
-
+	
 	rt_mutex_lock(&msm_bus_floor_vote_lock);
 	cl = dev_get_drvdata(dev);
 

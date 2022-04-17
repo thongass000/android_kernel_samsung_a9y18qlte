@@ -706,10 +706,10 @@ static int msm_dtmf_detect_rx_vsid_cb_put(struct snd_kcontrol *kcontrol,
 	uint32_t session_id = ucontrol->value.integer.value[0];
 	uint32_t enable = ucontrol->value.integer.value[1];
 
-	if (!is_valid_session_id(session_id)) {
-		pr_err(" %s Invalid session_id : %x\n", __func__, session_id);
-		return -EINVAL;
-	}
+	if (!is_valid_session_id(session_id)) { 
+		pr_err(" %s Invalid session_id : %x\n", __func__, session_id); 
+		return -EINVAL; 
+	} 
 
 	if (enable)
 		enable = 1;

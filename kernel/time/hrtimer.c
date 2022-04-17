@@ -56,6 +56,8 @@
 
 #include "tick-internal.h"
 
+#include <linux/sec_debug.h>
+
 /*
  * The timer bases:
  *
@@ -1230,7 +1232,9 @@ static void __run_hrtimer(struct hrtimer_cpu_base *cpu_base,
 	 */
 	raw_spin_unlock(&cpu_base->lock);
 	trace_hrtimer_expire_entry(timer, now);
+	secdbg_sched_msg("%pS entry", fn);
 	restart = fn(timer);
+	secdbg_sched_msg("%pS exit", fn);
 	trace_hrtimer_expire_exit(timer);
 	raw_spin_lock(&cpu_base->lock);
 
@@ -1854,3 +1858,34 @@ int __sched schedule_hrtimeout(ktime_t *expires,
 	return schedule_hrtimeout_range(expires, 0, mode);
 }
 EXPORT_SYMBOL_GPL(schedule_hrtimeout);
+
+u32 arch_cp15_timer_get_ctrl(void);
+
+u32 arch_cp15_timer_get_tval(void);
+
+void is_hrtimer_healthy(int cpu)
+{
+	struct hrtimer_cpu_base *cpu_base = this_cpu_ptr(&hrtimer_bases);
+	struct tick_device *td = tick_get_device(cpu);
+	ktime_t expires_next, now, td_next_event;
+	u32 ctrl, tval;
+	
+	raw_spin_lock(&cpu_base->lock);
+	
+	now = ktime_get();
+	expires_next = __hrtimer_get_next_event(cpu_base);
+	td_next_event = td->evtdev->next_event;
+	ctrl = arch_cp15_timer_get_ctrl();
+	tval = arch_cp15_timer_get_tval();
+	
+	raw_spin_unlock(&cpu_base->lock);
+
+	if (expires_next.tv64 == KTIME_MAX)
+		return ;
+	
+	pr_info("[%s : %d] now : %lld, expires_next : %lld, td_next_event : %lld, ctrl : %x, tval : %d\n", 
+		__func__, cpu, now.tv64, expires_next.tv64, td_next_event.tv64, ctrl, tval);
+
+	return ;
+
+}

@@ -25,7 +25,7 @@
 #include <linux/sched.h>
 #include <linux/clkdev.h>
 #include <linux/regulator/consumer.h>
-
+#include <linux/sec_debug.h>
 #include "clk.h"
 
 #if defined(CONFIG_COMMON_CLK)
@@ -1752,6 +1752,7 @@ static int clk_change_rate(struct clk_core *core)
 		best_parent_rate = core->parent->rate;
 
 	trace_clk_set_rate(core, core->new_rate);
+	sec_debug_clock_rate_log(core->name, core->new_rate, raw_smp_processor_id());
 
 	/* Enforce vdd requirements for new frequency. */
 	if (core->prepare_count) {
@@ -1785,6 +1786,7 @@ static int clk_change_rate(struct clk_core *core)
 	}
 
 	trace_clk_set_rate_complete(core, core->new_rate);
+	sec_debug_clock_rate_complete_log(core->name, core->new_rate, raw_smp_processor_id());
 
 	/* Release vdd requirements for old frequency. */
 	if (core->prepare_count)
@@ -2314,7 +2316,11 @@ EXPORT_SYMBOL_GPL(clk_set_flags);
 
 static struct dentry *rootdir;
 static int inited = 0;
+#ifdef CONFIG_SEC_PM_DEBUG
+static u32 debug_suspend = 1;
+#else
 static u32 debug_suspend;
+#endif
 static DEFINE_MUTEX(clk_debug_lock);
 static HLIST_HEAD(clk_debug_list);
 

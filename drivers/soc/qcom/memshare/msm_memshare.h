@@ -26,6 +26,10 @@
 #define FREE	1
 #define MEMSHARE_GUARD_BYTES	(4*1024)
 
+#define DIAG	1
+#define FTM	2
+#define VENDOR	3
+
 struct mem_blocks {
 	/* Client Id information */
 	uint32_t client_id;

@@ -1210,7 +1210,7 @@ void q6asm_audio_client_free(struct audio_client *ac)
 
 	mutex_lock(&session_lock);
 
-	pr_debug("%s: Session id %d\n", __func__, ac->session);
+	pr_info("%s: Session id %d\n", __func__, ac->session);
 	if (ac->io_mode & SYNC_IO_MODE) {
 		for (loopcnt = 0; loopcnt <= OUT; loopcnt++) {
 			port = &ac->port[loopcnt];
@@ -1567,12 +1567,6 @@ int q6asm_audio_client_buf_alloc_contiguous(unsigned int dir,
 		pr_err("%s: buffer already allocated\n", __func__);
 		return 0;
 	}
-
-	if (bufcnt == 0) {
-		pr_err("%s: invalid buffer count\n", __func__);
-		return -EINVAL;
-	}
-
 	mutex_lock(&ac->cmd_lock);
 	buf = kzalloc(((sizeof(struct audio_buffer))*bufcnt),
 			GFP_KERNEL);
@@ -1743,8 +1737,7 @@ static int32_t q6asm_srvc_callback(struct apr_client_data *data, void *priv)
 		case ASM_CMD_SHARED_MEM_MAP_REGIONS:
 		case ASM_CMD_SHARED_MEM_UNMAP_REGIONS:
 		case ASM_CMD_ADD_TOPOLOGIES:
-			if (data->payload_size >= 2 * sizeof(uint32_t)
-				&& payload[1] != 0) {
+			if (data->payload_size >= 2 * sizeof(uint32_t) && payload[1] != 0) {
 				pr_err("%s: cmd = 0x%x returned error = 0x%x sid:%d\n",
 				       __func__, payload[0], payload[1],
 				       asm_token._token.session_id);
@@ -1798,7 +1791,7 @@ static int32_t q6asm_srvc_callback(struct apr_client_data *data, void *priv)
 	case ASM_CMD_SHARED_MEM_UNMAP_REGIONS:{
 		if (data->payload_size >= 2 * sizeof(uint32_t))
 			pr_debug("%s: PL#0[0x%x]PL#1 [0x%x]\n",
-				__func__, payload[0], payload[1]);
+						__func__, payload[0], payload[1]);
 		else
 			pr_debug("%s: Payload size of %d is less than expected.\n",
 				__func__, data->payload_size);
@@ -1962,7 +1955,7 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 		data->dest_port);
 	if ((data->opcode != ASM_DATA_EVENT_RENDERED_EOS) &&
 	    (data->opcode != ASM_DATA_EVENT_EOS) &&
-	    (data->opcode != ASM_SESSION_EVENTX_OVERFLOW) &&
+		(data->opcode != ASM_SESSION_EVENTX_OVERFLOW) &&
 	    (data->opcode != ASM_SESSION_EVENT_RX_UNDERFLOW)) {
 		if (payload == NULL) {
 			pr_err("%s: payload is null\n", __func__);
@@ -1970,7 +1963,7 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 				&(session[session_id].session_lock), flags);
 			return -EINVAL;
 		}
-		if (data->payload_size >= 2 * sizeof(uint32_t))
+		if(data->payload_size >= 2 * sizeof(uint32_t))
 			dev_vdbg(ac->dev, "%s: Payload = [0x%x] status[0x%x] opcode 0x%x\n",
 				__func__, payload[0], payload[1], data->opcode);
 		else
@@ -2020,37 +2013,34 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 		case ASM_DATA_CMD_REMOVE_TRAILING_SILENCE:
 		case ASM_SESSION_CMD_REGISTER_FOR_RX_UNDERFLOW_EVENTS:
 		case ASM_STREAM_CMD_OPEN_WRITE_COMPRESSED:
-			if (data->payload_size >=
-				2 * sizeof(uint32_t) &&
-				payload[1] != 0) {
+			if (data->payload_size >= 2 * sizeof(uint32_t)) {
 				pr_debug("%s: session %d opcode 0x%x token 0x%x Payload = [0x%x] stat 0x%x src %d dest %d\n",
 					__func__, ac->session,
 					data->opcode, data->token,
 					payload[0], payload[1],
 					data->src_port, data->dest_port);
-				pr_err("%s: cmd = 0x%x returned error = 0x%x\n",
-					__func__,
-					payload[0],
-					payload[1]);
-				if (wakeup_flag) {
-					if ((is_adsp_reg_event(payload[0]) >= 0)
-					|| (payload[0] ==
-					ASM_STREAM_CMD_SET_PP_PARAMS_V2)
-					|| (payload[0] ==
-					 ASM_STREAM_CMD_SET_PP_PARAMS_V3))
-						atomic_set(
-							&ac->cmd_state_pp,
-							payload[1]);
-					else
-						atomic_set(
-							&ac->cmd_state,
-							payload[1]);
-					wake_up(&ac->cmd_wait);
+				if (payload[1] != 0) {
+					pr_err("%s: cmd = 0x%x returned error = 0x%x\n",
+						__func__, payload[0], payload[1]);
+					if (wakeup_flag) {
+						if ((is_adsp_reg_event(payload[0]) >=
+						     0) ||
+						    (payload[0] ==
+						     ASM_STREAM_CMD_SET_PP_PARAMS_V2) ||
+						    (payload[0] ==
+						     ASM_STREAM_CMD_SET_PP_PARAMS_V3))
+							atomic_set(&ac->cmd_state_pp,
+								payload[1]);
+						else
+							atomic_set(&ac->cmd_state,
+								payload[1]);
+						wake_up(&ac->cmd_wait);
+					}
+					spin_unlock_irqrestore(
+						&(session[session_id].session_lock),
+						flags);
+					return 0;
 				}
-				spin_unlock_irqrestore(
-					&(session[session_id].session_lock),
-					flags);
-				return 0;
 			} else {
 				pr_err("%s: payload size of %x is less than expected.\n",
 					__func__, data->payload_size);
@@ -2075,21 +2065,24 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 					(uint32_t *)data->payload, ac->priv);
 			break;
 		case ASM_CMD_ADD_TOPOLOGIES:
-			if (data->payload_size >=
-				2 * sizeof(uint32_t) &&
-				payload[1] != 0) {
+			if (data->payload_size >= 2 * sizeof(uint32_t)) {
 				pr_debug("%s:Payload = [0x%x]stat[0x%x]\n",
-					__func__, payload[0], payload[1]);
-				pr_err("%s: cmd = 0x%x returned error = 0x%x\n",
-					__func__, payload[0], payload[1]);
-				if (wakeup_flag) {
-					atomic_set(&ac->mem_state, payload[1]);
-					wake_up(&ac->mem_wait);
+						__func__, payload[0], payload[1]);
+				if (payload[1] != 0) {
+					pr_err("%s: cmd = 0x%x returned error = 0x%x\n",
+						 __func__, payload[0], payload[1]);
+					if (wakeup_flag) {
+						atomic_set(&ac->mem_state, payload[1]);
+						wake_up(&ac->mem_wait);
+					}
+					spin_unlock_irqrestore(
+						&(session[session_id].session_lock),
+						flags);
+					return 0;
 				}
-				spin_unlock_irqrestore(
-					&(session[session_id].session_lock),
-					flags);
-				return 0;
+			} else {
+				pr_err("%s: payload size of %x is less than expected.\n",
+					__func__, data->payload_size);
 			}
 			if (atomic_read(&ac->mem_state) && wakeup_flag) {
 				atomic_set(&ac->mem_state, 0);
@@ -2121,9 +2114,8 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 				if (payload[1] != 0) {
 					pr_err("%s: ASM get param error = %d, resuming\n",
 						__func__, payload[1]);
-					rtac_make_asm_callback(ac->session,
-							payload,
-							data->payload_size);
+					rtac_make_asm_callback(ac->session, payload,
+								data->payload_size);
 				}
 			} else {
 				pr_err("%s: payload size of %x is less than expected.\n",
@@ -2179,11 +2171,11 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 			spin_lock_irqsave(&port->dsp_lock, dsp_flags);
 			buf_index = asm_token._token.buf_index;
 			if (buf_index < 0 ||
-					buf_index >= port->max_buf_cnt) {
+				buf_index >= port->max_buf_cnt) {
 				pr_debug("%s: Invalid buffer index %u\n",
-				__func__, buf_index);
+					__func__, buf_index);
 				spin_unlock_irqrestore(&port->dsp_lock,
-								dsp_flags);
+					dsp_flags);
 				spin_unlock_irqrestore(
 					&(session[session_id].session_lock),
 					flags);
@@ -2193,8 +2185,7 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 				(lower_32_bits(port->buf[buf_index].phys) !=
 				payload[0] ||
 				msm_audio_populate_upper_32_bits(
-					port->buf[buf_index].phys) !=
-				payload[1])) {
+					port->buf[buf_index].phys) != payload[1])) {
 				pr_debug("%s: Expected addr %pK\n",
 				__func__, &port->buf[buf_index].phys);
 				pr_err("%s: rxedl[0x%x] rxedu [0x%x]\n",
@@ -2231,26 +2222,19 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 			if (generic_get_data->is_inband) {
 				if (data->payload_size >= 4 * sizeof(uint32_t))
 					pr_debug("%s: payload[1] = 0x%x, payload[2]=0x%x, payload[3]=0x%x\n",
-							__func__,
-							payload[1],
-							payload[2],
-							payload[3]);
+							__func__, payload[1], payload[2], payload[3]);
 				else
 					pr_err("%s: payload size of %x is less than expected.\n",
 						__func__,
 						data->payload_size);
 
-				if (data->payload_size >=
-					(4 + (payload[3]>>2))
-					* sizeof(uint32_t)) {
-					generic_get_data->size_in_ints =
-						payload[3]>>2;
+				if (data->payload_size >= (4 + (payload[3]>>2)) * sizeof(uint32_t)) {
+					generic_get_data->size_in_ints = payload[3]>>2;
 					for (i = 0; i < payload[3]>>2; i++) {
 						generic_get_data->ints[i] =
-							payload[4+i];
+									   payload[4+i];
 						pr_debug("%s: ASM callback val %i = %i\n",
-							 __func__, i,
-							 payload[4+i]);
+							 __func__, i, payload[4+i]);
 					}
 				} else {
 					pr_err("%s: payload size of %x is less than expected.\n",
@@ -2301,9 +2285,9 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 			buf_index = asm_token._token.buf_index;
 			if (buf_index < 0 || buf_index >= port->max_buf_cnt) {
 				pr_debug("%s: Invalid buffer index %u\n",
-				__func__, buf_index);
+					__func__, buf_index);
 				spin_unlock_irqrestore(&port->dsp_lock,
-								dsp_flags);
+					dsp_flags);
 				spin_unlock_irqrestore(
 					&(session[session_id].session_lock),
 					flags);
@@ -2355,8 +2339,7 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 			dev_vdbg(ac->dev, "%s: ASM_SESSION_CMDRSP_GET_SESSIONTIME_V3, payload[0] = %d, payload[1] = %d, payload[2] = %d\n",
 					 __func__,
 					 payload[0], payload[1], payload[2]);
-			ac->time_stamp =
-				(uint64_t)(((uint64_t)payload[2] << 32) |
+			ac->time_stamp = (uint64_t)(((uint64_t)payload[2] << 32) |
 					payload[1]);
 		} else {
 			dev_err(ac->dev, "%s: payload size of %x is less than expected.n",
@@ -2433,9 +2416,7 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 	case ASM_SESSION_CMDRSP_ADJUST_SESSION_CLOCK_V2:
 		if (data->payload_size >= 3 * sizeof(uint32_t))
 			pr_debug("%s: ASM_SESSION_CMDRSP_ADJUST_SESSION_CLOCK_V2 sesion %d status 0x%x msw %u lsw %u\n",
-				 __func__, ac->session,
-				 payload[0],
-				 payload[2],
+				 __func__, ac->session, payload[0], payload[2],
 				 payload[1]);
 		else
 			pr_err("%s: payload size of %x is less than expected.\n",
@@ -2445,15 +2426,12 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 	case ASM_SESSION_CMDRSP_GET_PATH_DELAY_V2:
 		if (data->payload_size >= 3 * sizeof(uint32_t))
 			pr_debug("%s: ASM_SESSION_CMDRSP_GET_PATH_DELAY_V2 session %d status 0x%x msw %u lsw %u\n",
-				__func__, ac->session,
-				payload[0], payload[2],
-				payload[1]);
+					__func__, ac->session, payload[0], payload[2],
+					payload[1]);
 		else
 			pr_err("%s: payload size of %x is less than expected.\n",
 				__func__, data->payload_size);
-		if (payload[0] == 0 &&
-			data->payload_size >=
-				2 * sizeof(uint32_t)) {
+		if (payload[0] == 0 && data->payload_size >= 2 * sizeof(uint32_t)) {
 			atomic_set(&ac->cmd_state, 0);
 			/* ignore msw, as a delay that large shouldn't happen */
 			ac->path_delay = payload[1];
@@ -2944,7 +2922,7 @@ static int __q6asm_open_read(struct audio_client *ac,
 		pr_err("%s: AC APR handle NULL\n", __func__);
 		return -EINVAL;
 	}
-	pr_debug("%s: session[%d]\n", __func__, ac->session);
+	pr_info("%s: session[%d]\n", __func__, ac->session);
 
 	q6asm_add_hdr(ac, &open.hdr, sizeof(open), TRUE);
 	atomic_set(&ac->cmd_state, -1);
@@ -3312,7 +3290,7 @@ static int __q6asm_open_write(struct audio_client *ac, uint32_t format,
 	if (ac->perf_mode != LEGACY_PCM_MODE)
 		open.postprocopo_id = ASM_STREAM_POSTPROCOPO_ID_NONE;
 
-	pr_debug("%s: perf_mode %d asm_topology 0x%x bps %d\n", __func__,
+	pr_info("%s: perf_mode %d asm_topology 0x%x bps %d\n", __func__,
 		 ac->perf_mode, open.postprocopo_id, open.bits_per_sample);
 
 	/*
@@ -3368,9 +3346,6 @@ static int __q6asm_open_write(struct audio_client *ac, uint32_t format,
 		break;
 	case FORMAT_APTX:
 		open.dec_fmt_id = ASM_MEDIA_FMT_APTX;
-		break;
-	case FORMAT_APTXHD:
-		open.dec_fmt_id = ASM_MEDIA_FMT_APTX_HD;
 		break;
 	case FORMAT_GEN_COMPR:
 		open.dec_fmt_id = ASM_MEDIA_FMT_GENERIC_COMPRESSED;
@@ -4563,15 +4538,15 @@ int q6asm_set_encdec_chan_map(struct audio_client *ac,
 	struct asm_dec_out_chan_map_param chan_map;
 	u8 *channel_mapping;
 	int rc = 0;
-	pr_debug("%s: Session %d, num_channels = %d\n",
-			 __func__, ac->session, num_channels);
 
 	if (num_channels > MAX_CHAN_MAP_CHANNELS) {
 		pr_err("%s: Invalid channel count %d\n", __func__,
-				num_channels);
+			num_channels);
 		return -EINVAL;
 	}
 
+	pr_debug("%s: Session %d, num_channels = %d\n",
+			 __func__, ac->session, num_channels);
 	q6asm_add_hdr(ac, &chan_map.hdr, sizeof(chan_map), TRUE);
 	atomic_set(&ac->cmd_state, -1);
 	chan_map.hdr.opcode = ASM_STREAM_CMD_SET_ENCDEC_PARAM;
@@ -5148,6 +5123,7 @@ int q6asm_enc_cfg_blk_pcm_native(struct audio_client *ac,
 	struct asm_multi_channel_pcm_enc_cfg_v2  enc_cfg;
 	u8 *channel_mapping;
 	u32 frames_per_buf = 0;
+
 	int rc = 0;
 
 	if (channels > PCM_FORMAT_MAX_NUM_CHANNEL) {

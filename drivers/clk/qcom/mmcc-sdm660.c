@@ -580,6 +580,7 @@ static struct clk_rcg2 byte1_clk_src = {
 
 static const struct freq_tbl ftbl_camss_gp0_clk_src[] = {
 	F(10000, P_CXO, 16, 1, 120),
+	F(20000, P_CXO, 16, 1, 60),
 	F(24000, P_CXO, 16, 1, 50),
 	F(6000000, P_GPLL0_OUT_MAIN_DIV, 10, 1, 5),
 	F(12000000, P_GPLL0_OUT_MAIN_DIV, 10, 2, 5),

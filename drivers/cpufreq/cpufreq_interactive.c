@@ -160,6 +160,10 @@ struct cpufreq_interactive_tunables {
 
 	/* Whether to enable prediction or not */
 	bool enable_prediction;
+
+	/* Limit max cpu_load */
+#define DEFAULT_MAX_CPULOAD 1000 // no limit
+	int max_cpuload;
 };
 
 /* For cases where we have single governor instance for system */
@@ -507,6 +511,12 @@ static void cpufreq_interactive_timer(unsigned long data)
 		if (tunables->use_sched_load) {
 			t_prevlaf = sl_busy_to_laf(ppol, sl[i].prev_load);
 			prev_l = t_prevlaf / ppol->target_freq;
+			if (!sl[i].early_det && prev_l >= tunables->max_cpuload) {
+				pr_debug("cigov: sl[%d].prev_load=%lu, prev_l=%d -> cpuload was limited\n", 
+					i, sl[i].prev_load, prev_l);
+				prev_l = tunables->max_cpuload;
+				t_prevlaf = prev_l * ppol->target_freq;
+			}
 			if (tunables->enable_prediction) {
 				t_predlaf = sl_busy_to_laf(ppol,
 						sl[i].predicted_load);
@@ -1258,6 +1268,25 @@ static ssize_t store_io_is_busy(struct cpufreq_interactive_tunables *tunables,
 	return count;
 }
 
+static ssize_t show_max_cpuload(struct cpufreq_interactive_tunables
+		*tunables, char *buf)
+{
+	return sprintf(buf, "%d\n", tunables->max_cpuload);
+}
+
+static ssize_t store_max_cpuload(struct cpufreq_interactive_tunables
+		*tunables, const char *buf, size_t count)
+{
+	int ret;
+	unsigned long val;
+
+	ret = kstrtoul(buf, 0, &val);
+	if (ret < 0)
+		return ret;
+	tunables->max_cpuload = val;
+	return count;
+}
+
 static int cpufreq_interactive_enable_sched_input(
 			struct cpufreq_interactive_tunables *tunables)
 {
@@ -1453,6 +1482,7 @@ show_store_gov_pol_sys(align_windows);
 show_store_gov_pol_sys(ignore_hispeed_on_notif);
 show_store_gov_pol_sys(fast_ramp_down);
 show_store_gov_pol_sys(enable_prediction);
+show_store_gov_pol_sys(max_cpuload);
 
 #define gov_sys_attr_rw(_name)						\
 static struct kobj_attribute _name##_gov_sys =				\
@@ -1483,6 +1513,7 @@ gov_sys_pol_attr_rw(align_windows);
 gov_sys_pol_attr_rw(ignore_hispeed_on_notif);
 gov_sys_pol_attr_rw(fast_ramp_down);
 gov_sys_pol_attr_rw(enable_prediction);
+gov_sys_pol_attr_rw(max_cpuload);
 
 static struct kobj_attribute boostpulse_gov_sys =
 	__ATTR(boostpulse, 0200, NULL, store_boostpulse_gov_sys);
@@ -1510,6 +1541,7 @@ static struct attribute *interactive_attributes_gov_sys[] = {
 	&ignore_hispeed_on_notif_gov_sys.attr,
 	&fast_ramp_down_gov_sys.attr,
 	&enable_prediction_gov_sys.attr,
+	&max_cpuload_gov_sys.attr,
 	NULL,
 };
 
@@ -1538,6 +1570,7 @@ static struct attribute *interactive_attributes_gov_pol[] = {
 	&ignore_hispeed_on_notif_gov_pol.attr,
 	&fast_ramp_down_gov_pol.attr,
 	&enable_prediction_gov_pol.attr,
+	&max_cpuload_gov_pol.attr,
 	NULL,
 };
 
@@ -1577,6 +1610,7 @@ static struct cpufreq_interactive_tunables *alloc_tunable(
 	tunables->timer_rate = DEFAULT_TIMER_RATE;
 	tunables->boostpulse_duration_val = DEFAULT_MIN_SAMPLE_TIME;
 	tunables->timer_slack_val = DEFAULT_TIMER_SLACK;
+	tunables->max_cpuload = DEFAULT_MAX_CPULOAD;
 
 	spin_lock_init(&tunables->target_loads_lock);
 	spin_lock_init(&tunables->above_hispeed_delay_lock);

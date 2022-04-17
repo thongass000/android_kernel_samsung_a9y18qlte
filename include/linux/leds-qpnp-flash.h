@@ -21,8 +21,12 @@
 
 #define FLASH_LED_PREPARE_OPTIONS_MASK	GENMASK(3, 0)
 
-#if (defined CONFIG_LEDS_QPNP_FLASH || defined CONFIG_LEDS_QPNP_FLASH_V2)
-extern int (*qpnp_flash_led_prepare)(struct led_trigger *trig, int options,
+#if (defined CONFIG_LEDS_KTD2692)
+	int qpnp_flash_led_prepare(struct led_trigger *trig, int options,
+					int *max_current);
+	
+#elif (defined CONFIG_LEDS_QPNP_FLASH || defined CONFIG_LEDS_QPNP_FLASH_V2 || defined CONFIG_LEDS_SM5705) 
+	extern int (*qpnp_flash_led_prepare)(struct led_trigger *trig, int options,
 					int *max_current);
 #else
 static inline int qpnp_flash_led_prepare(struct led_trigger *trig, int options,

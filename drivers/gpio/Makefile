@@ -121,3 +121,11 @@ obj-$(CONFIG_GPIO_ZEVIO)	+= gpio-zevio.o
 obj-$(CONFIG_GPIO_ZYNQ)		+= gpio-zynq.o
 obj-$(CONFIG_GPIO_ZX)		+= gpio-zx.o
 obj-$(CONFIG_MSM_SMP2P)		+= gpio-msm-smp2p.o
+ifdef CONFIG_GPIO_KTS1620
+obj-$(CONFIG_GPIO_KTS1620)	+= gpio-kts1620.o
+else
+obj-$(CONFIG_GPIO_PCAL6524)	+= gpio-pcal6524.o
+endif
+# Debug and verify gpio configurations.
+obj-$(CONFIG_SEC_GPIO_DVS)      += secgpio_dvs.o
+obj-$(CONFIG_SEC_PM_DEBUG)      += sec-pinmux.o

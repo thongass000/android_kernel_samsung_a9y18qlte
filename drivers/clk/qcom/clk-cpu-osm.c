@@ -678,6 +678,53 @@ static int clk_osm_search_table(struct osm_entry *table, int entries, long rate)
 	return -EINVAL;
 }
 
+#ifdef CONFIG_SEC_DEBUG_APPS_CLK_LOGGING
+
+typedef struct {
+	uint64_t ktime;
+	uint64_t qtime;
+	uint64_t rate;
+} apps_clk_log_t;
+
+#define MAX_CLK_LOG_CNT (10)
+
+typedef struct {
+	uint32_t max_cnt;
+	uint32_t index;
+	apps_clk_log_t log[MAX_CLK_LOG_CNT];
+} cpuclk_log_t;
+
+cpuclk_log_t cpuclk_log[2] = {
+	[0] = {.max_cnt = MAX_CLK_LOG_CNT,},
+	[1] = {.max_cnt = MAX_CLK_LOG_CNT,},
+};
+
+static void clk_osm_add_log(struct clk_osm *cpuclk, unsigned long rate)
+{
+	cpuclk_log_t *clk = NULL;
+	apps_clk_log_t *log = NULL;
+	uint64_t idx = 0;
+
+	if (!WARN(cpuclk->cluster_num >= 2,
+		"%s : invalid cluster_num(%u), dbg_name(%s)\n",
+		__func__, cpuclk->cluster_num, cpuclk->hw.init->name)) {
+		clk = &cpuclk_log[cpuclk->cluster_num];
+		idx = clk->index;
+		log = &clk->log[idx];
+		log->ktime = local_clock();
+		log->qtime = arch_counter_get_cntvct();
+		log->rate = rate;
+		clk->index = (clk->index + 1) % MAX_CLK_LOG_CNT;
+	}
+}
+
+void* clk_osm_get_log_addr(void)
+{
+	return (void *)&cpuclk_log;
+}
+EXPORT_SYMBOL(clk_osm_get_log_addr);
+#endif
+
 static int clk_osm_set_rate(struct clk_hw *hw, unsigned long rate,
 				    unsigned long parent_rate)
 {
@@ -723,6 +770,9 @@ static int clk_osm_set_rate(struct clk_hw *hw, unsigned long rate,
 	/* Make sure the write goes through before proceeding */
 	clk_osm_mb(cpuclk, OSM_BASE);
 
+#ifdef CONFIG_SEC_DEBUG_APPS_CLK_LOGGING
+	clk_osm_add_log(cpuclk, rate);
+#endif
 	return 0;
 }
 

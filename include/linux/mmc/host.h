@@ -18,6 +18,7 @@
 #include <linux/devfreq.h>
 #include <linux/fault-inject.h>
 #include <linux/blkdev.h>
+#include <linux/wakelock.h>
 
 #include <linux/mmc/core.h>
 #include <linux/mmc/card.h>
@@ -430,6 +431,7 @@ struct mmc_host {
 #define MMC_CAP2_HS200_1_2V_SDR	(1 << 6)        /* can support */
 #define MMC_CAP2_HS200		(MMC_CAP2_HS200_1_8V_SDR | \
 				 MMC_CAP2_HS200_1_2V_SDR)
+#define MMC_CAP2_DETECT_ON_ERR	(1 << 8)	/* On I/O err check card removal */
 #define MMC_CAP2_HC_ERASE_SZ	(1 << 9)	/* High-capacity erase size */
 #define MMC_CAP2_CD_ACTIVE_HIGH	(1 << 10)	/* Card-detect signal active high */
 #define MMC_CAP2_RO_ACTIVE_HIGH	(1 << 11)	/* Write-protect signal active high */
@@ -457,6 +459,7 @@ struct mmc_host {
 #define MMC_CAP2_SLEEP_AWAKE	(1 << 28)	/* Use Sleep/Awake (CMD5) */
 /* use max discard ignoring max_busy_timeout parameter */
 #define MMC_CAP2_MAX_DISCARD_SIZE	(1 << 29)
+#define MMC_CAP2_BKOPS_EN	(1 << 30)
 
 	mmc_pm_flag_t		pm_caps;	/* supported pm features */
 
@@ -516,6 +519,8 @@ struct mmc_host {
 	int			claim_cnt;	/* "claim" nesting count */
 
 	struct delayed_work	detect;
+	struct wake_lock        detect_wake_lock;
+	const char              *wlock_name;
 	int			detect_change;	/* card detect flag */
 	struct mmc_slot		slot;
 
@@ -606,8 +611,11 @@ struct mmc_host {
 #endif
 
 	bool sdr104_wa;
+	unsigned int		card_detect_cnt;
+	int (*sdcard_uevent)(struct mmc_card *card);
 	atomic_t rpmb_req_pending;
 	struct mutex		rpmb_req_mutex;
+	int			pm_progress;	/* pm_notify is in progress */
 	unsigned long		private[0] ____cacheline_aligned;
 };
 

@@ -56,7 +56,7 @@
 			"camss_ispif_ahb_clk", "csiphy_clk_src", "csiphy_clk",
 			"csiphy_ahb2crif";
 		qcom,clock-rates = <0 0 0 0 0 0 310000000 0 0 269333333 0
-			0 200000000 0 0>;
+			0 269333333 0 0>;
 		status = "ok";
 	};
 
@@ -94,7 +94,7 @@
 			"camss_ispif_ahb_clk", "csiphy_clk_src", "csiphy_clk",
 			"csiphy_ahb2crif";
 		qcom,clock-rates = <0 0 0 0 0 0 310000000 0 0 269333333 0
-			0 200000000 0 0>;
+			0 269333333 0 0>;
 		status = "ok";
 	};
 
@@ -132,7 +132,7 @@
 			"camss_ispif_ahb_clk", "csiphy_clk_src", "csiphy_clk",
 			"csiphy_ahb2crif";
 		qcom,clock-rates = <0 0 0 0 0 0 310000000 0 0 269333333 0
-			0 200000000 0 0>;
+			0 269333333 0 0>;
 		status = "ok";
 	};
 
@@ -172,7 +172,7 @@
 			"ispif_ahb_clk", "csi_src_clk", "csiphy_clk_src",
 			"csi_clk", "csi_ahb_clk", "csi_rdi_clk",
 			"csi_pix_clk", "cphy_csid_clk";
-		qcom,clock-rates = <0 0 0 0 0 0 0 310000000 200000000
+		qcom,clock-rates = <0 0 0 0 0 0 0 310000000 269333333
 			0 0 0 0 0>;
 		status = "ok";
 	};
@@ -213,7 +213,7 @@
 			"ispif_ahb_clk", "csi_src_clk", "csiphy_clk_src",
 			"csi_clk", "csi_ahb_clk", "csi_rdi_clk",
 			"csi_pix_clk", "cphy_csid_clk";
-		qcom,clock-rates = <0 0 0 0 0 0 0 310000000 200000000
+		qcom,clock-rates = <0 0 0 0 0 0 0 310000000 269333333
 			 0 0 0 0 0>;
 		status = "ok";
 	};
@@ -254,7 +254,7 @@
 			"ispif_ahb_clk", "csi_src_clk", "csiphy_clk_src",
 			"csi_clk", "csi_ahb_clk", "csi_rdi_clk",
 			"csi_pix_clk", "cphy_csid_clk";
-		qcom,clock-rates = <0 0 0 0 0 0 0 310000000 200000000
+		qcom,clock-rates = <0 0 0 0 0 0 0 310000000 269333333
 			 0 0 0 0 0>;
 		status = "ok";
 	};
@@ -295,7 +295,7 @@
 			"ispif_ahb_clk", "csi_src_clk", "csiphy_clk_src",
 			"csi_clk", "csi_ahb_clk", "csi_rdi_clk",
 			"csi_pix_clk", "cphy_csid_clk";
-		qcom,clock-rates = <0 0 0 0 0 0 0 310000000 200000000
+		qcom,clock-rates = <0 0 0 0 0 0 0 310000000 269333333
 			 0 0 0 0 0>;
 		status = "ok";
 	};

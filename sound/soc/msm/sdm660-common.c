@@ -22,8 +22,18 @@
 #include "../codecs/sdm660_cdc/msm-analog-cdc.h"
 #include "../codecs/wsa881x.h"
 
+#if defined(CONFIG_KNOWLES_DMIC_CONTROL)
+#include <linux/dbmdx.h>
+#endif
+
+#ifdef CONFIG_SAMSUNG_JACK
+#include <linux/sec_jack.h>
+#include <linux/qpnp/qpnp-adc.h>
+#include <linux/qpnp/pin.h>
+#endif /* CONFIG_SAMSUNG_JACK */
 #define __CHIPSET__ "SDM660 "
 #define MSM_DAILINK_NAME(name) (__CHIPSET__#name)
+
 #define DRV_NAME "sdm660-asoc-snd"
 
 #define MSM_INT_DIGITAL_CODEC "msm-dig-codec"
@@ -216,6 +226,11 @@ static struct wcd_mbhc_config mbhc_cfg = {
 	.anc_micbias = 0,
 	.enable_anc_mic_detect = false,
 };
+
+#ifdef CONFIG_SAMSUNG_JACK
+static struct snd_soc_jack hs_jack;
+static struct mutex jack_mutex;
+#endif /* CONFIG_SAMSUNG_JACK */
 
 static struct dev_config proxy_rx_cfg = {
 	.sample_rate = SAMPLING_RATE_48KHZ,
@@ -2524,8 +2539,10 @@ int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 	int port_id = msm_get_port_id(rtd->dai_link->be_id);
 	int index = cpu_dai->id;
 	unsigned int fmt = SND_SOC_DAIFMT_CBS_CFS;
+	struct msm_asoc_mach_data *pdata =
+		snd_soc_card_get_drvdata(rtd->card);
 
-	dev_dbg(rtd->card->dev,
+	dev_info(rtd->card->dev,
 		"%s: substream = %s  stream = %d, dai name %s, dai ID %d\n",
 		__func__, substream->name, substream->stream,
 		cpu_dai->name, cpu_dai->id);
@@ -2575,6 +2592,8 @@ int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 				goto clk_off;
 			}
 		}
+		if (pdata->tert_mi2s_gpio_p)
+			msm_cdc_pinctrl_select_active_state(pdata->tert_mi2s_gpio_p);
 	}
 	mutex_unlock(&mi2s_intf_conf[index].lock);
 	return 0;
@@ -2601,8 +2620,9 @@ void msm_mi2s_snd_shutdown(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	int port_id = msm_get_port_id(rtd->dai_link->be_id);
 	int index = rtd->cpu_dai->id;
+	struct msm_asoc_mach_data *pdata = snd_soc_card_get_drvdata(rtd->card);
 
-	pr_debug("%s(): substream = %s  stream = %d\n", __func__,
+	dev_info(rtd->card->dev, "%s(): substream = %s  stream = %d\n", __func__,
 		 substream->name, substream->stream);
 	if (index < PRIM_MI2S || index > QUAT_MI2S) {
 		pr_err("%s:invalid MI2S DAI(%d)\n", __func__, index);
@@ -2611,6 +2631,8 @@ void msm_mi2s_snd_shutdown(struct snd_pcm_substream *substream)
 
 	mutex_lock(&mi2s_intf_conf[index].lock);
 	if (--mi2s_intf_conf[index].ref_cnt == 0) {
+		if (pdata->tert_mi2s_gpio_p)
+			msm_cdc_pinctrl_select_sleep_state(pdata->tert_mi2s_gpio_p);
 		ret = msm_mi2s_set_sclk(substream, false);
 		if (ret < 0)
 			pr_err("%s:clock disable failed for MI2S (%d); ret=%d\n",
@@ -2786,8 +2808,95 @@ err:
 	return ret;
 }
 
+#ifdef CONFIG_SAMSUNG_JACK
+void msm_set_micbias(bool state)
+{
+	struct snd_soc_jack *jack = &hs_jack;
+	struct snd_soc_card *card;
+	struct snd_soc_dapm_context *dapm;
+	char *str = "MIC BIAS Power External2";
+	int ret = 0;
+
+	if (jack->card == NULL) {
+		pr_err("%s card is NULL\n", __func__);
+		return;
+	}
+	pr_info("%s : %s, state=%d\n", __func__, str, state);
+
+	mutex_lock(&jack_mutex);
+	card = jack->card;
+	dapm = &card->dapm;
+
+	if (state == true)
+		ret = snd_soc_dapm_force_enable_pin(dapm, str);
+	else
+		ret = snd_soc_dapm_disable_pin(dapm, str);
+
+	if(ret < 0) {
+		pr_err("%s is failed(%d)\n",
+			__func__, ret);
+	}
+
+	snd_soc_dapm_sync(dapm);
+	mutex_unlock(&jack_mutex);
+}
+
+static int msm_get_adc(void)
+{
+	struct snd_soc_jack *jack = &hs_jack;
+	struct snd_soc_card *card;
+	struct msm_asoc_mach_data *pdata;
+	struct qpnp_vadc_result result;
+	struct qpnp_vadc_chip *earjack_vadc;
+	int adc;
+
+	if (jack->card == NULL) {
+		pr_err("%s card is NULL\n", __func__);
+		return -1;
+	}
+
+	card = jack->card;
+	pdata = snd_soc_card_get_drvdata(card);
+	earjack_vadc = qpnp_get_vadc(card->dev,
+		"earjack-read");
+	qpnp_vadc_read(earjack_vadc, pdata->amux_channel, &result);
+
+	/* Get voltage in microvolts */
+	adc = ((int)result.physical)/1000;
+
+	return adc;
+}
+
+static int msm_get_moisture_adc(void)
+{
+	struct snd_soc_jack *jack = &hs_jack;
+	struct snd_soc_card *card;
+	struct msm_asoc_mach_data *pdata;
+	struct qpnp_vadc_result result;
+	struct qpnp_vadc_chip *moisture_vadc;
+	int adc;
+
+	if (jack->card == NULL) {
+		pr_err("%s card is NULL\n", __func__);
+		return -1;
+	}
+
+	card = jack->card;
+	pdata = snd_soc_card_get_drvdata(card);
+	moisture_vadc = qpnp_get_vadc(card->dev,
+		"moisture-read");
+	qpnp_vadc_read(moisture_vadc, pdata->moisture_channel, &result);
+
+	/* Get voltage in microvolts */
+	adc = ((int)result.physical)/1000;
+
+	return adc;
+}
+#endif /* CONFIG_SAMSUNG_JACK */
+
 static int msm_wsa881x_init(struct snd_soc_component *component)
 {
+#ifdef CONFIG_SND_SOC_WSA881X
 	u8 spkleft_ports[WSA881X_MAX_SWR_PORTS] = {100, 101, 102, 106};
 	u8 spkright_ports[WSA881X_MAX_SWR_PORTS] = {103, 104, 105, 107};
 	unsigned int ch_rate[WSA881X_MAX_SWR_PORTS] = {2400, 600, 300, 1200};
@@ -2833,6 +2942,7 @@ static int msm_wsa881x_init(struct snd_soc_component *component)
 	if (pdata && pdata->codec_root)
 		wsa881x_codec_info_create_codec_entry(pdata->codec_root,
 						      codec);
+#endif
 	return 0;
 }
 
@@ -3144,6 +3254,8 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 					"qcom,cdc-dmic-gpios", 0);
 		pdata->ext_spk_gpio_p = of_parse_phandle(pdev->dev.of_node,
 					"qcom,cdc-ext-spk-gpios", 0);
+		pdata->tert_mi2s_gpio_p = of_parse_phandle(pdev->dev.of_node,
+					"qcom,tert-mi2s-gpios", 0);
 	}
 
 	/*
@@ -3190,6 +3302,7 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret == -EPROBE_DEFER) {
+#ifdef SND_SOC_EXT_CODEC
 		if (codec_reg_done) {
 			/*
 			 * return failure as EINVAL since other codec
@@ -3198,14 +3311,66 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 			 */
 			ret = -EINVAL;
 		}
+#endif
 		goto err;
 	} else if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n",
 			ret);
 		goto err;
 	}
+#ifdef SND_SOC_EXT_CODEC
 	if (pdata->snd_card_val != INT_SND_CARD)
 		msm_ext_register_audio_notifier(pdev);
+#endif
+	dev_info(&pdev->dev, "Sound card %s registered\n", card->name);
+
+#ifdef CONFIG_SAMSUNG_JACK
+	ret = of_property_read_u32(pdev->dev.of_node,
+		"qcom,amux_channel", &pdata->amux_channel);
+	if (ret < 0) {
+		dev_err(card->dev,
+			"%s: missing amux_channel in dt node\n",
+			__func__);
+		goto err;
+	}
+	dev_dbg(&pdev->dev, "amux_channel 0x%x\n", pdata->amux_channel);
+
+	ret = of_property_read_u32(pdev->dev.of_node,
+		"qcom,moisture-channel", &pdata->moisture_channel);
+	if (ret < 0)
+		dev_info(card->dev,
+			"doesn`t support moisture detection\n");
+	else
+		dev_dbg(&pdev->dev, "moisture_channel 0x%x\n",
+			pdata->moisture_channel);
+
+	jack_controls.set_micbias = msm_set_micbias;
+	jack_controls.get_adc = msm_get_adc;
+	jack_controls.get_moisture_adc = msm_get_moisture_adc;
+	jack_controls.snd_card_registered = 1;
+
+	mutex_init(&jack_mutex);
+
+	hs_jack.card = card;
+#endif /* CONFIG_SAMSUNG_JACK */
+	pdata->dmic_ldo_en = of_get_named_gpio(pdev->dev.of_node,
+				"qcom,dmic-ldo-en", 0);
+
+	if (pdata->dmic_ldo_en >= 0) {
+		dev_dbg(&pdev->dev, "%s: dmic_ldo_en gpio request %d", __func__,
+			pdata->dmic_ldo_en);
+		ret = gpio_request(pdata->dmic_ldo_en, "dmic_ldo_en");
+		if (ret) {
+			dev_err(card->dev,
+				"%s: Failed to request dmic_ldo_en gpio %d error %d\n",
+				__func__, pdata->dmic_ldo_en, ret);
+		} else {
+#if defined(CONFIG_KNOWLES_DMIC_CONTROL)
+			dbmdx_set_ldo_gpio(pdata->dmic_ldo_en);
+#endif
+			gpio_direction_output(pdata->dmic_ldo_en, 1);
+		}
+	}	
 
 	return 0;
 err:
@@ -3227,7 +3392,9 @@ err:
 		pdata->hph_en0_gpio = 0;
 	}
 	if (pdata->snd_card_val != INT_SND_CARD)
+#if defined(SND_SOC_EXT_CODEC)
 		msm_ext_cdc_deinit(pdata);
+#endif
 	devm_kfree(&pdev->dev, pdata);
 	return ret;
 }
@@ -3240,9 +3407,13 @@ static int msm_asoc_machine_remove(struct platform_device *pdev)
 	if (pdata->snd_card_val == INT_SND_CARD)
 		mutex_destroy(&pdata->cdc_int_mclk0_mutex);
 	else
+#if defined(SND_SOC_EXT_CODEC)
 		msm_ext_cdc_deinit(pdata);
+#endif
 	msm_free_auxdev_mem(pdev);
 
+	if (pdata->dmic_ldo_en > 0)
+		gpio_free(pdata->dmic_ldo_en);
 	gpio_free(pdata->us_euro_gpio);
 	gpio_free(pdata->hph_en1_gpio);
 	gpio_free(pdata->hph_en0_gpio);

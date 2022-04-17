@@ -652,6 +652,30 @@ config LEDS_QPNP_HAPTICS
 	  module provides haptic feedback for user actions such as a long press
 	  on the touch screen.
 
+config LEDS_SM5705
+	tristate "Siliconmitus SM5703 flash LED driver"
+	help
+	  A driver for Siliconmitus SM5705 flash LED
+
+config LEDS_SM5705_RGB
+	tristate "LED driver for SM5705 LED"
+	  help
+	  This option enables support for RGB LED driver
+	  accessed via the I2C bus.
+	  SM5705 is a fully programmable, constant current
+	  three channel LED driver with flexible control interface.
+
+config DUAL_LEDS_FLASH
+	tristate "Dual leds flash driver for main camera"
+	help
+	  A driver for dual LEDs flash
+	  This option enables support for the dual LEDs on the SM5705.
+
+config LEDS_SEPARATE_PREFLASH
+	tristate "Seperate preflash current for main camera"
+	help
+	  Option for seperate preflash current on SM5705.
+
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
 

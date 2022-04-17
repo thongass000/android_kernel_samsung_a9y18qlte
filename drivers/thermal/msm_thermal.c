@@ -50,6 +50,7 @@
 #include <linux/uaccess.h>
 #include <linux/uio_driver.h>
 #include <linux/io.h>
+#include <linux/sec_debug.h>
 
 #include <asm/cacheflush.h>
 
@@ -147,6 +148,10 @@
 
 static struct msm_thermal_data msm_thermal_info;
 static struct delayed_work check_temp_work, retry_hotplug_work;
+#if CONFIG_SEC_PM_DEBUG
+static struct delayed_work ts_print_work;
+static int ts_print_num[] = {1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 13};
+#endif
 static bool core_control_enabled;
 static uint32_t cpus_offlined;
 static cpumask_var_t cpus_previously_online;
@@ -3668,6 +3673,29 @@ reschedule:
 		schedule_delayed_work(&check_temp_work,
 				msecs_to_jiffies(msm_thermal_info.poll_ms));
 }
+
+#if CONFIG_SEC_PM_DEBUG
+static void __ref ts_print(struct work_struct *work)
+{
+	struct tsens_device tsens_dev;
+	int temp = 0;
+	int i = 0, added = 0, ret = 0;
+	char buffer[500] = { 0, };
+
+	ret = sprintf(buffer + added, "tsens");
+	added += ret;
+	for (i = 0; i < (sizeof(ts_print_num) / sizeof(int)); i++) {
+		tsens_dev.sensor_num = ts_print_num[i];
+		tsens_get_temp(&tsens_dev, &temp);
+		ret = sprintf(buffer + added, "[%d:%d]", ts_print_num[i], temp);
+		added += ret;
+	}
+	pr_info("%s\n", buffer);
+
+	/* For every 5s log the temperature values of all the msm tsens */
+	schedule_delayed_work(&ts_print_work, HZ * 5);
+}
+#endif
 
 static int __ref msm_thermal_cpu_callback(struct notifier_block *nfb,
 		unsigned long action, void *hcpu)
@@ -7483,6 +7511,11 @@ static int msm_thermal_dev_exit(struct platform_device *inp_dev)
 	if (msm_therm_debugfs && msm_therm_debugfs->parent)
 		debugfs_remove_recursive(msm_therm_debugfs->parent);
 	msm_thermal_ioctl_cleanup();
+#if CONFIG_SEC_PM_DEBUG
+	if (sec_debug_is_enabled())
+		cancel_delayed_work_sync(&ts_print_work);
+#endif
+
 	if (thresh) {
 		if (vdd_rstr_enabled) {
 			sensor_mgr_remove_threshold(
@@ -7580,6 +7613,13 @@ static struct platform_driver msm_thermal_device_driver = {
 
 int __init msm_thermal_device_init(void)
 {
+#if CONFIG_SEC_PM_DEBUG
+	INIT_DELAYED_WORK(&ts_print_work, ts_print);
+
+	if (sec_debug_is_enabled())
+		schedule_delayed_work(&ts_print_work, (HZ * 2));
+#endif
+
 	return platform_driver_register(&msm_thermal_device_driver);
 }
 arch_initcall(msm_thermal_device_init);

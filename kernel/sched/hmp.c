@@ -3318,6 +3318,7 @@ skip_early:
 		busy[i].predicted_load = div64_u64(pload[i], NSEC_PER_USEC);
 
 exit_early:
+		busy[i].early_det = early_detection[i];
 		trace_sched_get_busy(cpu, busy[i].prev_load,
 				     busy[i].new_task_load,
 				     busy[i].predicted_load,

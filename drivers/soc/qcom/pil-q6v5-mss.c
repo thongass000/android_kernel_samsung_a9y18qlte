@@ -41,6 +41,7 @@
 #define PROXY_TIMEOUT_MS	10000
 #define MAX_SSR_REASON_LEN	130U
 #define STOP_ACK_TIMEOUT_MS	1000
+#define WDOG_RCV_TIMEOUT_MS	10000
 
 #define subsys_to_drv(d) container_of(d, struct modem_data, subsys_desc)
 
@@ -137,6 +138,7 @@ static int modem_powerup(const struct subsys_desc *subsys)
 	 * to unset the flag below.
 	 */
 	reinit_completion(&drv->stop_ack);
+	reinit_completion(&drv->wdog_rcv);
 	drv->subsys_desc.ramdump_disable = 0;
 	drv->ignore_errors = false;
 	drv->q6->desc.fw_name = subsys->fw_name;
@@ -194,9 +196,25 @@ static irqreturn_t modem_wdog_bite_intr_handler(int irq, void *dev_id)
 			!gpio_get_value(drv->subsys_desc.err_fatal_gpio))
 		panic("%s: System ramdump requested. Triggering device restart!\n",
 							__func__);
+	complete_all(&drv->wdog_rcv);
 	subsys_set_crash_status(drv->subsys, CRASH_STATUS_WDOG_BITE);
 	restart_modem(drv);
 	return IRQ_HANDLED;
+}
+
+static void modem_wdog_resp_wait_work(struct work_struct *work)
+{
+	struct subsys_desc *subsys = container_of(work,
+						struct subsys_desc, wdog_work);
+	struct modem_data *drv = subsys_to_drv(subsys);
+	unsigned long ret;
+
+	ret = wait_for_completion_timeout(&drv->wdog_rcv,
+				  msecs_to_jiffies(WDOG_RCV_TIMEOUT_MS));
+	if (!ret) {
+		pr_err("Timed out on waiting watchdog bite from modem.\n");
+		panic("No response from Modem, SSR fail!");
+	}
 }
 
 static int pil_subsys_init(struct modem_data *drv,
@@ -214,6 +232,7 @@ static int pil_subsys_init(struct modem_data *drv,
 	drv->subsys_desc.err_fatal_handler = modem_err_fatal_intr_handler;
 	drv->subsys_desc.stop_ack_handler = modem_stop_ack_intr_handler;
 	drv->subsys_desc.wdog_bite_handler = modem_wdog_bite_intr_handler;
+	drv->subsys_desc.wdog_resp_wait = modem_wdog_resp_wait_work;
 
 	drv->q6->desc.modem_ssr = false;
 	drv->subsys = subsys_register(&drv->subsys_desc);
@@ -408,6 +427,7 @@ static int pil_mss_driver_probe(struct platform_device *pdev)
 			return ret;
 	}
 	init_completion(&drv->stop_ack);
+	init_completion(&drv->wdog_rcv);
 
 	/* Probe the MBA mem device if present */
 	ret = of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);

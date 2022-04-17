@@ -719,6 +719,15 @@ static int pil_auth_and_reset(struct pil_desc *pil)
 	if (rc)
 		goto err_reset;
 
+#ifdef CONFIG_SENSORS_SSC
+	if (d->subsys_desc.gpio_sensor_ldo) {
+		gpio_set_value(d->subsys_desc.gpio_sensor_ldo, 1);
+		pr_info("%s, %s gpio_sensor_ldo(%d) enable(%d)\n", __func__,
+			d->subsys_desc.name, d->subsys_desc.gpio_sensor_ldo,
+			gpio_get_value(d->subsys_desc.gpio_sensor_ldo));
+	}
+#endif
+
 	return scm_ret;
 err_reset:
 	disable_unprepare_clocks(d->clks, d->clk_count);
@@ -762,6 +771,14 @@ static int pil_shutdown_trusted(struct pil_desc *pil)
 
 	disable_unprepare_clocks(d->proxy_clks, d->proxy_clk_count);
 	disable_regulators(d, d->proxy_regs, d->proxy_reg_count, false);
+
+#ifdef CONFIG_SENSORS_SSC
+	if (d->subsys_desc.gpio_sensor_ldo) {
+		gpio_set_value(d->subsys_desc.gpio_sensor_ldo, 0);
+		pr_info("%s, %s gpio_sensor_ldo disable\n", 
+			__func__, d->subsys_desc.name);
+	}
+#endif
 
 	if (rc)
 		return rc;

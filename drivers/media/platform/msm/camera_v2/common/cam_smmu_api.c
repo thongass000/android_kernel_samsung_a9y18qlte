@@ -616,7 +616,7 @@ static int cam_smmu_create_add_handle_in_table(char *name,
 			iommu_cb_set.cb_info[i].cb_count = 0;
 			iommu_cb_set.cb_info[i].ref_cnt++;
 			*hdl = handle;
-			CDBG("%s creates handle 0x%x\n", name, handle);
+			pr_err("%s creates handle 0x%x\n", name, handle);
 			mutex_unlock(&iommu_cb_set.cb_info[i].lock);
 			return 0;
 		}
@@ -1046,6 +1046,7 @@ static int cam_smmu_map_buffer_and_add_to_list(int idx, int ion_fd,
 	struct sg_table *table = NULL;
 
 	if (!paddr_ptr) {
+		pr_err("Error: Input pointer invalid\n");
 		rc = -EINVAL;
 		goto err_out;
 	}
@@ -1292,8 +1293,7 @@ static enum cam_smmu_buf_state cam_smmu_check_secure_fd_in_list(int idx,
 					int ion_fd, dma_addr_t *paddr_ptr,
 					size_t *len_ptr)
 {
-	struct cam_sec_buff_info *mapping;
-
+	struct cam_sec_buff_info *mapping = NULL;
 	list_for_each_entry(mapping,
 			&iommu_cb_set.cb_info[idx].smmu_buf_list,
 			list) {
@@ -1859,7 +1859,7 @@ int cam_smmu_alloc_get_stage2_scratch_mem(int handle,
 		return -EINVAL;
 	}
 	*sc_handle = ion_alloc(client, SZ_2M, SZ_2M,
-				ION_HEAP(ION_SECURE_DISPLAY_HEAP_ID),
+				ION_HEAP(/*ION_SECURE_DISPLAY_HEAP_ID*/ION_SECURE_CAMERA_SCRATCH_HEAP_ID),
 				ION_FLAG_SECURE | ION_FLAG_CP_CAMERA);
 	if (IS_ERR_OR_NULL((void *) (*sc_handle))) {
 		rc = -ENOMEM;

@@ -264,8 +264,18 @@ enum eeprom_cfg_type_t {
 	CFG_EEPROM_GET_CAL_DATA,
 	CFG_EEPROM_READ_CAL_DATA,
 	CFG_EEPROM_WRITE_DATA,
+	CFG_EEPROM_COMPRESS_DATA,
 	CFG_EEPROM_GET_MM_INFO,
 	CFG_EEPROM_INIT,
+	CFG_EEPROM_READ_DATA,
+	CFG_EEPROM_READ_COMPRESSED_DATA,
+	CFG_EEPROM_DECOMPRESS_DATA,
+	CFG_EEPROM_GET_ERASESIZE,
+	CFG_EEPROM_ERASE,
+	CFG_EEPROM_POWER_ON,
+	CFG_EEPROM_POWER_OFF,
+	CFG_EEPROM_READ_DATA_FROM_HW,
+	CFG_EEPROM_GET_FW_VERSION_INFO
 };
 
 struct eeprom_get_t {
@@ -275,12 +285,23 @@ struct eeprom_get_t {
 struct eeprom_read_t {
 	uint8_t *dbuffer;
 	uint32_t num_bytes;
+	uint32_t addr;
+	uint32_t comp_size;
 };
 
 struct eeprom_write_t {
 	uint8_t *dbuffer;
 	uint32_t num_bytes;
+	uint32_t addr;
+	uint32_t *write_size;
+	uint8_t compress;
 };
+
+struct eeprom_erase_t {
+	uint32_t num_bytes;
+	uint32_t addr;
+};
+
 
 struct eeprom_get_cmm_t {
 	uint32_t cmm_support;
@@ -315,7 +336,7 @@ struct msm_laser_led_cfg_data_t {
 
 struct msm_eeprom_cfg_data {
 	enum eeprom_cfg_type_t cfgtype;
-	uint8_t is_supported;
+	uint16_t is_supported;
 	union {
 		char eeprom_name[MAX_EEPROM_NAME];
 		struct eeprom_get_t get_data;
@@ -357,6 +378,7 @@ enum msm_sensor_cfg_type_t {
 	CFG_WRITE_I2C_ARRAY_ASYNC,
 	CFG_WRITE_I2C_ARRAY_SYNC,
 	CFG_WRITE_I2C_ARRAY_SYNC_BLOCK,
+	CFG_MATCH_ID,
 };
 
 enum msm_actuator_cfg_type_t {
@@ -368,6 +390,8 @@ enum msm_actuator_cfg_type_t {
 	CFG_ACTUATOR_POWERDOWN,
 	CFG_ACTUATOR_POWERUP,
 	CFG_ACTUATOR_INIT,
+	CFG_ACTUATOR_SLEEP,
+	CFG_ACTUATOR_ACTIVE	
 };
 
 struct msm_ois_opcode {
@@ -571,6 +595,7 @@ enum msm_sensor_init_cfg_type_t {
 	CFG_SINIT_PROBE,
 	CFG_SINIT_PROBE_DONE,
 	CFG_SINIT_PROBE_WAIT_DONE,
+	CFG_SINIT_HWB,
 };
 
 struct sensor_init_cfg_data {

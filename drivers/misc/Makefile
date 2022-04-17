@@ -66,3 +66,16 @@ obj-$(CONFIG_UID_SYS_STATS) += uid_sys_stats.o
 obj-y				+= qcom/
 obj-$(CONFIG_QPNP_MISC) 	+= qpnp-misc.o
 obj-$(CONFIG_MEMORY_STATE_TIME) += memory_state_time.o
+
+obj-$(CONFIG_DRV_SAMSUNG)       += samsung/
+# Samsung Jack
+obj-$(CONFIG_SAMSUNG_JACK)	+= sec_jack.o
+ifeq ($(TIMA_ENABLED),1)
+obj-$(CONFIG_TIMA)		+= tima_debug_test.o
+obj-$(CONFIG_TIMA_LOG)		+= tima_debug_log.o
+endif
+
+# for DMVerity
+obj-$(CONFIG_DM_VERITY)		+= dmverity_query.o
+
+obj-$(CONFIG_DEV_RIL_BRIDGE)	+= dev_ril_bridge/
