@@ -37,6 +37,7 @@ static struct list_head    ordered_sd_list;
 static struct mutex        ordered_sd_mtx;
 static struct mutex        v4l2_event_mtx;
 
+static atomic_t qos_add_request_done = ATOMIC_INIT(0);
 static struct pm_qos_request msm_v4l2_pm_qos_request;
 
 static struct msm_queue_head *msm_session_q;
@@ -228,6 +229,8 @@ static void msm_pm_qos_add_request(void)
 static void msm_pm_qos_remove_request(void)
 {
 	pr_info("%s: remove request", __func__);
+	if (!atomic_cmpxchg(&qos_add_request_done, 1, 0))
+		return;
 	pm_qos_remove_request(&msm_v4l2_pm_qos_request);
 }
 

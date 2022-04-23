@@ -56,6 +56,15 @@
 #include <linux/ratelimit.h>
 
 #define CREATE_TRACE_POINTS
+#include <trace/events/almk.h>
+
+#ifdef CONFIG_HIGHMEM
+#define _ZONE ZONE_HIGHMEM
+#else
+#define _ZONE ZONE_NORMAL
+#endif
+
+#define CREATE_TRACE_POINTS
 #include "trace/lowmemorykiller.h"
 
 static int lmkd_count;
