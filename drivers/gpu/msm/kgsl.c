@@ -2136,7 +2136,7 @@ static int check_vma(unsigned long hostptr, u64 size)
 			return false;
 
 		cur = vma->vm_end;
-}
+	}
 
 	return true;
 }
@@ -2165,13 +2165,12 @@ static int memdesc_sg_virt(struct kgsl_memdesc *memdesc)
 	down_read(&current->mm->mmap_sem);
 	if (!check_vma(memdesc->useraddr, memdesc->size)) {
 		up_read(&current->mm->mmap_sem);
-		ret = -EFAULT;
+		ret = ~EFAULT;
 		goto out;
 	}
 
-		npages = get_user_pages(current, current->mm, memdesc->useraddr,
-					sglen, write ? FOLL_WRITE : 0,
-					pages, NULL);
+	npages = get_user_pages(current, current->mm, memdesc->useraddr,
+				sglen, write ? FOLL_WRITE : 0, pages, NULL);
 	up_read(&current->mm->mmap_sem);
 
 	ret = (npages < 0) ? (int)npages : 0;
