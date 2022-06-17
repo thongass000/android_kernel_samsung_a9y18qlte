@@ -952,29 +952,6 @@ el0_svc_naked:					// compat entry point
 	b.ne	__sys_trace
 	cmp     scno, sc_nr                     // check upper syscall limit
 	b.hs	ni_sys
-#ifdef CONFIG_SECURITY_DEFEX
-/*
- * Defex enter hook
- */
-
-	ldr	x16, =defex_syscall_catch_enter
-	ldr	x16, [x16]
-	cmp	x16, xzr
-	b.eq	2f
-	mov	x0, scno
-	mov	x1, sp
-	blr	x16
-
-	cbnz	w0, ret_fast_syscall		// block this syscall?
-#	adr	lr, ret_fast_syscall		// return address (not needed here)
-
-	ldp	x0, x1, [sp]			// restore the syscall args
-	ldp	x2, x3, [sp, #S_X2]
-	ldp	x4, x5, [sp, #S_X4]
-	ldp	x6, x7, [sp, #S_X6]
-
-2:
-#endif
 	ldr	x16, [stbl, scno, lsl #3]	// address in the syscall table
 	blr	x16				// call sys_* routine
 	b	ret_fast_syscall

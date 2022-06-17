@@ -95,11 +95,6 @@
 #include <linux/secgpio_dvs.h>
 #endif
 
-#ifdef CONFIG_SECURITY_DEFEX
-#include <linux/defex.h>
-void __init __weak defex_load_rules(void) { }
-#endif
-
 static int kernel_init(void *);
 
 extern void init_IRQ(void);
