@@ -434,6 +434,7 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 	unsigned long rem = 0;
 	int tasksize;
 	int i;
+	int ret = 0;
 	short min_score_adj = OOM_SCORE_ADJ_MAX + 1;
 	int minfree = 0;
 	int selected_tasksize = 0;
@@ -572,6 +573,7 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 		}
 
 		task_lock(selected);
+		get_task_struct(selected);
 		send_sig(SIGKILL, selected, 0);
 		/*
 		 * FIXME: lowmemorykiller shouldn't abuse global OOM killer
@@ -633,11 +635,16 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 
 		lowmem_deathpending_timeout = jiffies + HZ;
 		rem += selected_tasksize;
-		get_task_struct(selected);
 		rcu_read_unlock();
-		lmk_count++;
-	} else
+		/* give the system time to free up the memory */
+		msleep_interruptible(20);
+		trace_almk_shrink(selected_tasksize, ret,
+				  other_free, other_file,
+				  selected_oom_score_adj);
+	} else {
+		trace_almk_shrink(1, ret, other_free, other_file, 0);
 		rcu_read_unlock();
+	}
 
 	lowmem_print(4, "lowmem_scan %lu, %x, return %lu\n",
 		     sc->nr_to_scan, sc->gfp_mask, rem);
